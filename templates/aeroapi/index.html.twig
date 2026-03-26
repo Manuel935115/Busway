@@ -1,0 +1,831 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Busway — Seguimiento de Vuelos en Tiempo Real{% endblock %}
+
+{% block body %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #1e293b;
+        -webkit-font-smoothing: antialiased;
+        background: #eef2f7;
+        min-height: 100vh;
+    }
+
+    /* ── BACKGROUND ── */
+    .page-bg {
+        position: fixed; inset: 0; z-index: 0;
+        background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #f1f5f9 70%, #fce7f3 100%);
+    }
+    .page-bg::before {
+        content: '';
+        position: absolute; inset: 0;
+        background: url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=60&w=1920&auto=format&fit=crop') center/cover no-repeat;
+        opacity: 0.12;
+        filter: blur(2px);
+    }
+
+    /* ── NAVBAR ── */
+    .nav {
+        position: sticky; top: 0; z-index: 100;
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        height: 56px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 40px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 6px; }
+    .nav-brand img { height: 38px; }
+    .nav-links { display: flex; gap: 28px; font-size: 0.82rem; font-weight: 600; }
+    .nav-links a {
+        text-decoration: none; color: #64748b; transition: color .2s;
+        position: relative; padding-bottom: 2px;
+    }
+    .nav-links a:hover, .nav-links a.active { color: #1e293b; }
+    .nav-links a.active::after {
+        content: ''; position: absolute; bottom: -4px; left: 0; right: 0;
+        height: 2px; background: #4361ee; border-radius: 2px;
+    }
+
+    /* ── CONTENT WRAPPER ── */
+    .content-wrap {
+        position: relative; z-index: 1;
+        max-width: 880px; margin: 0 auto;
+        padding: 28px 24px 60px;
+    }
+
+    /* ── SEARCH ── */
+    .search-section { margin-bottom: 24px; }
+    .search-bar {
+        background: #fff;
+        border-radius: 16px;
+        display: flex; align-items: center;
+        padding: 6px 6px 6px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.06);
+        transition: all .3s;
+    }
+    .search-bar:focus-within {
+        box-shadow: 0 0 0 3px rgba(67,97,238,0.12), 0 8px 24px rgba(0,0,0,0.06);
+        border-color: #4361ee;
+    }
+    .search-icon { color: #94a3b8; margin-right: 4px; flex-shrink: 0; }
+    .search-bar input {
+        flex: 1; border: none; outline: none;
+        font-size: 0.92rem; color: #1e293b; font-weight: 500;
+        background: transparent; padding: 10px 12px;
+        font-family: inherit;
+    }
+    .search-bar input::placeholder { color: #94a3b8; font-weight: 400; }
+    .search-bar button {
+        background: #4361ee; color: #fff; border: none;
+        border-radius: 12px; padding: 12px 28px;
+        font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        font-family: inherit; letter-spacing: 0.3px;
+        transition: all .15s;
+    }
+    .search-bar button:hover { background: #3451d1; transform: scale(1.05); box-shadow: 0 0 16px rgba(67,97,238,0.45); }
+
+    .search-route {
+        text-align: center; margin-top: 14px;
+        font-size: 0.92rem; font-weight: 600; color: #475569;
+        animation: fadeIn 0.5s ease;
+    }
+    .search-route span { color: #4361ee; font-weight: 700; }
+
+    /* ── DELAY ALERT ── */
+    .delay-alert {
+        border-radius: 14px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 14px;
+        margin-bottom: 20px;
+        font-size: 0.88rem;
+        animation: fadeIn 0.5s ease;
+    }
+    .delay-alert-icon {
+        width: 38px; height: 38px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; background: rgba(255,255,255,0.2);
+    }
+    .delay-alert-content h4 { font-size: 0.88rem; font-weight: 700; margin: 0; }
+    .delay-alert-content p { font-size: 0.78rem; margin: 2px 0 0; opacity: 0.9; font-weight: 500; }
+    .delay-red { background: #dc2626; color: #fff; }
+    .delay-orange { background: #ea580c; color: #fff; }
+    .delay-yellow { background: #d97706; color: #fff; }
+    .delay-green { background: #16a34a; color: #fff; }
+
+    /* ── MAIN CARD ── */
+    .card {
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
+        overflow: hidden;
+        animation: fadeInUp 0.5s ease;
+    }
+
+    /* ── FLIGHT HEADER ── */
+    .fl-header {
+        padding: 22px 28px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fl-header-left { display: flex; align-items: center; gap: 16px; }
+    .fl-airline-logo {
+        width: 44px; height: 44px; border-radius: 10px;
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+    }
+    .fl-airline-logo img { width: 36px; height: 36px; object-fit: contain; }
+    .fl-ident { font-size: 1.1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
+    .fl-meta { font-size: 0.78rem; color: #64748b; font-weight: 500; margin-top: 1px; }
+    .badge {
+        padding: 5px 14px; border-radius: 8px;
+        font-size: 0.68rem; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 1.2px;
+    }
+    .badge-blue { background: #4361ee; color: #fff; }
+    .badge-green { background: #16a34a; color: #fff; }
+    .badge-red { background: #dc2626; color: #fff; }
+    .badge-gray { background: #64748b; color: #fff; }
+
+    /* ── PROGRESS LINE ── */
+    .fl-progress { padding: 20px 28px; border-bottom: 1px solid #f1f5f9; }
+    .fl-progress-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        position: relative; padding: 0 4px;
+    }
+    .fl-progress-line {
+        position: absolute; top: 50%; left: 20px; right: 20px;
+        height: 3px; background: #e2e8f0; border-radius: 4px;
+        transform: translateY(-50%); z-index: 0;
+    }
+    .fl-progress-fill {
+        height: 100%; background: #4361ee; border-radius: 4px;
+        transition: width .8s ease;
+    }
+    .fl-progress-labels {
+        display: flex; justify-content: space-between;
+        margin-top: 6px; padding: 0 4px;
+    }
+    .fl-prog-label { font-size: 0.6rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; text-align: center; flex: 1; }
+    .fl-prog-label.active { color: #4361ee; }
+    .fl-prog-label.completed { color: #16a34a; }
+
+    .fl-progress-dot {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: #fff; border: 3px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center;
+        position: relative; z-index: 2;
+        transition: all .3s;
+    }
+    .fl-progress-dot.completed { border-color: #4361ee; background: #4361ee; }
+    .fl-progress-dot.completed svg { color: #fff; }
+    .fl-progress-dot.active {
+        border-color: #4361ee;
+        box-shadow: 0 0 0 4px rgba(67,97,238,0.15);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    .fl-progress-dot svg { width: 12px; height: 12px; color: #cbd5e1; }
+
+    /* ── DEPARTURE / ARRIVAL ── */
+    .fl-route-section { padding: 24px 28px; display: flex; gap: 0; border-bottom: 1px solid #f1f5f9; }
+    .fl-ep {
+        flex: 1; padding: 16px 20px;
+        border-radius: 14px; background: #f8fafc;
+        border: 1px solid #f1f5f9;
+    }
+    .fl-ep + .fl-ep { margin-left: 16px; }
+    .fl-ep-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px;
+    }
+    .fl-ep-time-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+    .fl-ep-time { font-size: 1.5rem; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .fl-ep-date { font-size: 0.78rem; color: #64748b; font-weight: 500; }
+    .fl-ep-actual {
+        font-size: 0.78rem; font-weight: 700; margin-top: 4px;
+    }
+    .fl-ep-actual.ontime { color: #16a34a; }
+    .fl-ep-actual.late { color: #dc2626; }
+    .fl-ep-actual.early { color: #16a34a; }
+    .fl-ep-gate {
+        display: flex; align-items: center; gap: 6px;
+        margin-top: 12px; padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 0.78rem; font-weight: 600; color: #475569;
+    }
+    .fl-ep-gate svg { color: #94a3b8; flex-shrink: 0; }
+    .fl-ep-airport { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .fl-ep-iata { font-size: 1rem; font-weight: 800; color: #1e293b; }
+    .fl-ep-city { font-size: 0.82rem; color: #64748b; font-weight: 500; }
+
+    /* ── OPERATION TIMELINE ── */
+    .fl-timeline { padding: 20px 28px; border-bottom: 1px solid #f1f5f9; }
+    .fl-timeline-header {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #64748b; margin-bottom: 16px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .fl-timeline-header svg { color: #4361ee; }
+    .fl-timeline-steps {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        position: relative; padding: 0 8px;
+    }
+    .fl-timeline-line {
+        position: absolute; top: 14px; left: 32px; right: 32px;
+        height: 2px; background: #e2e8f0; z-index: 0;
+    }
+    .fl-timeline-line-fill {
+        height: 100%; background: #4361ee; border-radius: 2px;
+        transition: width .8s ease;
+    }
+    .fl-tl-step { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; z-index: 1; }
+    .fl-tl-dot {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #fff; border: 2px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; font-weight: 800; color: #94a3b8;
+    }
+    .fl-tl-dot.done { background: #4361ee; border-color: #4361ee; color: #fff; }
+    .fl-tl-dot.current { border-color: #4361ee; color: #4361ee; box-shadow: 0 0 0 4px rgba(67,97,238,0.12); }
+    .fl-tl-info { text-align: center; }
+    .fl-tl-name { font-size: 0.6rem; font-weight: 700; color: #475569; line-height: 1.2; white-space: nowrap; }
+    .fl-tl-time { font-size: 0.58rem; color: #94a3b8; font-weight: 600; margin-top: 1px; }
+
+    /* ── DETAILS SECTION ── */
+    .fl-details { padding: 24px 28px; }
+    .fl-details-header {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #64748b; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .fl-details-header svg { color: #4361ee; }
+    .fl-details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .fl-detail-item { display: flex; align-items: flex-start; gap: 12px; }
+    .fl-detail-icon {
+        width: 40px; height: 40px; border-radius: 12px;
+        background: #f1f5f9; color: #4361ee;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .fl-detail-icon img {
+        width: 32px; height: 32px; object-fit: contain; border-radius: 6px;
+    }
+    .fl-detail-label { font-size: 0.62rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
+    .fl-detail-value { font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+        text-align: center; padding: 60px 24px;
+        color: #94a3b8;
+    }
+    .empty-state svg { margin-bottom: 12px; color: #cbd5e1; }
+    .empty-state p { font-size: 0.88rem; font-weight: 500; max-width: 360px; margin: 0 auto; line-height: 1.6; }
+
+    .alert-error {
+        background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 20px;
+        font-size: 0.85rem; font-weight: 600;
+        display: flex; align-items: center; gap: 10px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+        .nav { padding: 0 20px; }
+        .content-wrap { padding: 20px 16px 40px; }
+        .fl-route-section { flex-direction: column; }
+        .fl-ep + .fl-ep { margin-left: 0; margin-top: 12px; }
+        .fl-details-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+        .fl-timeline-steps { gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+        .fl-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    }
+
+    @media (max-width: 480px) {
+        .fl-details-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 4px rgba(67,97,238,0.15); }
+        50% { box-shadow: 0 0 0 8px rgba(67,97,238,0.08); }
+    }
+</style>
+
+<div class="page-bg"></div>
+
+{# ── NAVIGATION ── #}
+<div class="nav">
+    <div class="nav-brand">
+        <img src="{{ app.request.getBasePath() }}/images/logo_original.png" alt="Busway">
+    </div>
+    <div class="nav-links">
+        <a href="{{ path('app_aeroapi') }}" class="active">Buscar Vuelo</a>
+        <a href="{{ path('app_aeroapi_historial') }}">Historial</a>
+    </div>
+</div>
+
+{# ── MAIN CONTENT ── #}
+<div class="content-wrap">
+
+    {# ── SEARCH ── #}
+    <div class="search-section">
+        <form method="get" action="{{ path('app_aeroapi') }}" class="search-bar">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" name="flight" placeholder="Introduce un vuelo… ej. IBE3170, UAL900" value="{{ searched_flight|default('') }}" required autocomplete="off">
+            <button type="submit">Rastrear</button>
+        </form>
+
+        {% if flight_info and flight_info.flights is defined and flight_info.flights|length > 0 %}
+            {% set f = flight_info.flights|first %}
+            <div class="search-route">
+                Viaje desde <span>{{ f.origin.city|default(f.origin.name) }}</span> hasta <span>{{ f.destination.city|default(f.destination.name) }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if error %}
+        <div class="alert-error">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            {{ error }}
+        </div>
+    {% endif %}
+
+    {% if flight_info and flight_info.flights is defined %}
+        {% if flight_info.flights|length > 0 %}
+            {% set flight = flight_info.flights|first %}
+
+            {# ── STATUS LOGIC ── #}
+            {% set real_status_text = 'DESCONOCIDO' %}
+            {% set badgeClass = 'badge-gray' %}
+            {% set now_u = 'now'|date('U') %}
+            {% set out_u = flight.estimated_out|default(flight.scheduled_out|default('now'))|date('U') %}
+            {% set dep_delay_min = (flight.departure_delay|default(0) / 60)|round(0, 'floor') %}
+            {% set arr_delay_min = (flight.arrival_delay|default(0) / 60)|round(0, 'floor') %}
+            {% set max_delay_min = dep_delay_min > arr_delay_min ? dep_delay_min : arr_delay_min %}
+
+            {# ── DELAY ALERT ── #}
+            {% if max_delay_min != 0 %}
+                {% set delay_tier = '' %}
+                {% set delay_title = '' %}
+                {% set delay_msg = '' %}
+                {% set delay_icon_path = '' %}
+
+                {% if max_delay_min > 0 %}
+                    {% set delay_title = '¡Atención! Vuelo con retraso estimado de +' ~ max_delay_min ~ ' min' %}
+                    {% set delay_icon_path = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>' %}
+                    {% if max_delay_min > 60 %}
+                        {% set delay_tier = 'delay-red' %}
+                        {% set delay_msg = 'Retraso crítico. El vuelo ha superado la hora de demora.' %}
+                    {% elseif max_delay_min > 30 %}
+                        {% set delay_tier = 'delay-red' %}
+                        {% set delay_msg = 'Retraso significativo. Se recomienda revisar el estado frecuentemente.' %}
+                    {% else %}
+                        {% set delay_tier = 'delay-orange' %}
+                        {% set delay_msg = 'El vuelo presenta una demora de aproximadamente ' ~ max_delay_min ~ ' minutos.' %}
+                    {% endif %}
+                {% else %}
+                    {% set delay_tier = 'delay-green' %}
+                    {% set abs_delay = max_delay_min|abs %}
+                    {% set delay_title = '¡Buenas noticias! Vuelo adelantado (' ~ abs_delay ~ ' min)' %}
+                    {% set delay_msg = 'El avión está llegando ' ~ abs_delay ~ ' minutos antes de lo previsto.' %}
+                    {% set delay_icon_path = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' %}
+                {% endif %}
+
+                <div class="delay-alert {{ delay_tier }}">
+                    <div class="delay-alert-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">{{ delay_icon_path|raw }}</svg>
+                    </div>
+                    <div class="delay-alert-content">
+                        <h4>{{ delay_title }}</h4>
+                        <p>{{ delay_msg }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# ── STATUS: Seguimos directamente lo que dice la API ── #}
+            {% set api_status = flight.status|default('') %}
+
+            {% if 'Cancelled' in api_status %}
+                {% set real_status_text = 'CANCELADO' %}
+                {% set badgeClass = 'badge-red' %}
+            {% elseif 'Arrived' in api_status or (flight.actual_on is defined and flight.actual_on) %}
+                {% set real_status_text = 'ATERRIZADO' %}
+                {% set badgeClass = 'badge-gray' %}
+            {% elseif 'En Route' in api_status or (flight.progress_percent is defined and flight.progress_percent > 0 and flight.progress_percent < 100) %}
+                {% set real_status_text = 'EN VUELO' %}
+                {% set badgeClass = 'badge-blue' %}
+            {% elseif 'Taxiing' in api_status %}
+                {% set real_status_text = 'RODANDO A PISTA' %}
+                {% set badgeClass = 'badge-blue' %}
+            {% elseif 'Delayed' in api_status %}
+                {% set real_status_text = 'RETRASADO' %}
+                {% set badgeClass = 'badge-red' %}
+            {% elseif 'Scheduled' in api_status or 'Filed' in api_status %}
+                {% set real_status_text = 'PROGRAMADO' %}
+                {% set badgeClass = 'badge-green' %}
+            {% else %}
+                {# Fallback por tiempo solo si la API no da status #}
+                {% set mins_to_dep = (out_u - now_u) / 60 %}
+                {% if mins_to_dep > 0 and mins_to_dep <= 45 %}
+                    {% set real_status_text = 'EMBARCANDO' %}
+                    {% set badgeClass = 'badge-green' %}
+                {% elseif mins_to_dep <= 0 %}
+                    {% set real_status_text = 'EN VUELO' %}
+                    {% set badgeClass = 'badge-blue' %}
+                {% else %}
+                    {% set real_status_text = 'PROGRAMADO' %}
+                    {% set badgeClass = 'badge-green' %}
+                {% endif %}
+            {% endif %}
+
+            {# Variables compartidas entre la barra de progreso y la timeline #}
+            {% set is_en_route = ('En Route' in api_status) or (flight.progress_percent is defined and flight.progress_percent > 0 and flight.progress_percent < 100) %}
+            {% set is_arrived = ('Arrived' in api_status) or (flight.actual_on is defined and flight.actual_on) %}
+
+            {# ══════ FLIGHT CARD ══════ #}
+            <div class="card">
+                {# ── HEADER ── #}
+                <div class="fl-header">
+                    <div class="fl-header-left">
+                        <div class="fl-airline-logo">
+                            {% set icao_code = flight.operator|default(flight.ident|slice(0,3)|upper) %}
+                            {% if icao_code|length >= 3 %}
+                                <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_code|slice(0,3) }}.png" alt="{{ icao_code }}" onerror="this.parentElement.innerHTML='<svg width=20 height=20 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#94a3b8\' stroke-width=\'1.5\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>'">
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="fl-ident">{{ flight.ident }}</div>
+                            <div class="fl-meta">{{ flight.aircraft_type|default('—') }} · {{ flight.registration|default('—') }}</div>
+                        </div>
+                    </div>
+                    <span class="badge {{ badgeClass }}">{{ real_status_text }}</span>
+                </div>
+
+                {# ── PROGRESS BAR — sincronizado con la API ── #}
+                {% set progress = 0 %}
+                {% if is_arrived %}
+                    {% set progress = 100 %}
+                {% elseif 'En Route' in api_status or (flight.progress_percent is defined and flight.progress_percent > 0) %}
+                    {# En vuelo: usamos progress_percent de la API, o calculamos por tiempo #}
+                    {% if flight.progress_percent is defined and flight.progress_percent > 0 %}
+                        {% set progress = flight.progress_percent %}
+                    {% else %}
+                        {% set out_str = flight.actual_out|default(flight.scheduled_out|default('now')) %}
+                        {% set in_str  = flight.estimated_in|default(flight.scheduled_in|default('now')) %}
+                        {% set out_u2 = out_str|date('U') %}
+                        {% set in_u2  = in_str|date('U') %}
+                        {% set now_u2 = 'now'|date('U') %}
+                        {% if in_u2 > out_u2 %}
+                            {% set total_sec = in_u2 - out_u2 %}
+                            {% set elapsed_sec = now_u2 - out_u2 %}
+                            {% set calc_prog = (elapsed_sec / total_sec * 100) %}
+                            {% set progress = calc_prog < 0 ? 0 : (calc_prog > 100 ? 100 : calc_prog) %}
+                        {% endif %}
+                    {% endif %}
+                    {# Mínimo 5% si está en vuelo #}
+                    {% if progress < 5 %}
+                        {% set progress = 5 %}
+                    {% endif %}
+                {% elseif 'Taxiing' in api_status or (flight.actual_out is defined and flight.actual_out) %}
+                    {% set progress = 2 %}
+                {% endif %}
+
+                <div class="fl-progress">
+                    <div class="fl-progress-bar">
+                        <div class="fl-progress-line">
+                            <div class="fl-progress-fill" style="width: {{ progress|round(1) }}%;"></div>
+                        </div>
+
+                        {# 5 puntos: salida, despegue, crucero, descenso, llegada #}
+                        {# Usamos la misma lógica de la API que la timeline #}
+                        {% set dot_states = [
+                            { done: (flight.actual_out is defined and flight.actual_out) or progress > 0 or is_arrived },
+                            { done: progress >= 25 or is_arrived },
+                            { done: progress >= 50 or is_arrived },
+                            { done: progress >= 75 or is_arrived },
+                            { done: is_arrived }
+                        ] %}
+                        {% for dot in dot_states %}
+                            {% set dotClass = '' %}
+                            {% if dot.done %}
+                                {% set dotClass = 'completed' %}
+                            {% elseif loop.index0 == 0 and (real_status_text == 'EMBARCANDO' or real_status_text == 'RODANDO A PISTA') %}
+                                {% set dotClass = 'active' %}
+                            {% endif %}
+                            <div class="fl-progress-dot {{ dotClass }}">
+                                {% if dotClass == 'completed' %}
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                {% else %}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"></circle></svg>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="fl-progress-labels">
+                        {% set lbl1_done = (flight.actual_out is defined and flight.actual_out) or is_en_route or is_arrived %}
+                        {% set lbl2_done = is_en_route or is_arrived %}
+                        {% set lbl3_done = progress >= 50 or is_arrived %}
+                        {% set lbl4_done = progress >= 85 or is_arrived %}
+                        {% set lbl5_done = is_arrived %}
+                        <div class="fl-prog-label {% if dot_states[0].done %}completed{% elseif real_status_text == 'EMBARCANDO' or real_status_text == 'RODANDO A PISTA' %}active{% endif %}">Salida</div>
+                        <div class="fl-prog-label {% if dot_states[1].done %}completed{% elseif not dot_states[1].done and dot_states[0].done %}active{% endif %}">Despegue</div>
+                        <div class="fl-prog-label {% if dot_states[2].done %}completed{% endif %}">En Crucero</div>
+                        <div class="fl-prog-label {% if dot_states[3].done %}completed{% endif %}">Descenso</div>
+                        <div class="fl-prog-label {% if dot_states[4].done %}completed{% endif %}">Llegada</div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 8px;">
+                        <span style="font-size: 0.72rem; font-weight: 700; color: #475569;">{{ real_status_text }}</span>
+                        {% if real_status_text == 'EN VUELO' or real_status_text == 'RODANDO A PISTA' %}
+                            {% set arrival_time = flight.estimated_in|default(flight.scheduled_in|default(null)) %}
+                            {% if arrival_time %}
+                                {% set seconds_remaining = (arrival_time|date('U')) - ('now'|date('U')) %}
+                                {% if seconds_remaining > 0 %}
+                                    {% set rem_h = (seconds_remaining / 3600)|round(0, 'floor') %}
+                                    {% set rem_m = ((seconds_remaining % 3600) / 60)|round(0, 'floor') %}
+                                    <span style="font-size: 0.72rem; color: #4361ee; font-weight: 700; margin-left: 6px;">· Llegada estimada en {{ rem_h }}h {{ rem_m }}min</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── DEPARTURE / ARRIVAL ── #}
+                <div class="fl-route-section">
+                    {# ORIGIN #}
+                    <div class="fl-ep">
+                        <div class="fl-ep-label">Salida</div>
+                        {% set sched_out = flight.scheduled_out|default(null) %}
+                        {% set actual_out = flight.actual_out|default(flight.estimated_out|default(null)) %}
+                        <div class="fl-ep-time-row">
+                            <span class="fl-ep-time">{% if sched_out %}{{ sched_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
+                            <span class="fl-ep-date">{% if sched_out %}{{ sched_out|date('D d M', flight.origin.timezone|default('Europe/Madrid')) }}{% endif %}</span>
+                            <span style="font-size:0.68rem; color:#94a3b8; font-weight:500;">(Programada)</span>
+                        </div>
+                        {% if actual_out %}
+                            <div class="fl-ep-actual {% if flight.departure_delay is defined and flight.departure_delay > 0 %}late{% elseif flight.departure_delay is defined and flight.departure_delay < 0 %}early{% else %}ontime{% endif %}">
+                                Actual: {{ actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}
+                                {% if flight.departure_delay is defined and flight.departure_delay == 0 %} (A tiempo){% endif %}
+                                {% if flight.departure_delay is defined and flight.departure_delay > 0 %} (+{{ (flight.departure_delay / 60)|round }}min){% endif %}
+                                {% if flight.departure_delay is defined and flight.departure_delay < 0 %} ({{ (flight.departure_delay / 60)|round|abs }}min adelanto){% endif %}
+                            </div>
+                        {% endif %}
+                        <div class="fl-ep-airport">
+                            <span class="fl-ep-iata">{{ flight.origin.code_iata|default(flight.origin.code|default('???')) }}</span>
+                            <span class="fl-ep-city">{{ flight.origin.city|default('') }}</span>
+                        </div>
+                        {% set gate_org = flight.gate_origin|default(flight.origin.gate|default(null)) %}
+                        {% set term_org = flight.terminal_origin|default(flight.origin.terminal|default(null)) %}
+                        {% if gate_org or term_org %}
+                            <div class="fl-ep-gate">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a4 4 0 0 0-8 0v2"></path></svg>
+                                {% if term_org %}Terminal {{ term_org }}{% endif %}{% if term_org and gate_org %} · {% endif %}{% if gate_org %}Puerta {{ gate_org }}{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {# DESTINATION #}
+                    <div class="fl-ep">
+                        <div class="fl-ep-label">Llegada</div>
+                        {% set sched_in = flight.scheduled_in|default(flight.scheduled_on|default(null)) %}
+                        {% set actual_in = flight.actual_on|default(flight.estimated_on|default(flight.estimated_in|default(null))) %}
+                        <div class="fl-ep-time-row">
+                            <span class="fl-ep-time">{% if sched_in %}{{ sched_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
+                            <span class="fl-ep-date">{% if sched_in %}{{ sched_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}{% endif %}</span>
+                            <span style="font-size:0.68rem; color:#94a3b8; font-weight:500;">(Programada)</span>
+                        </div>
+                        {% if actual_in %}
+                            <div class="fl-ep-actual {% if flight.arrival_delay is defined and flight.arrival_delay > 0 %}late{% elseif flight.arrival_delay is defined and flight.arrival_delay < 0 %}early{% else %}ontime{% endif %}">
+                                Estimada: <span style="font-weight:800;">{{ actual_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</span>, {{ actual_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}
+                                {% if flight.arrival_delay is defined and flight.arrival_delay > 0 %}
+                                    <span style="display:inline-block; margin-left:6px; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:0.68rem; font-weight:700;">
+                                        RETRASO +{{ (flight.arrival_delay / 60)|round }}min
+                                    </span>
+                                {% endif %}
+                                {% if flight.arrival_delay is defined and flight.arrival_delay < 0 %}
+                                    <span style="display:inline-block; margin-left:6px; background:#f0fdf4; color:#16a34a; padding:2px 8px; border-radius:6px; font-size:0.68rem; font-weight:700;">
+                                        {{ (flight.arrival_delay / 60)|round|abs }}min ADELANTO
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        <div class="fl-ep-airport">
+                            <span class="fl-ep-iata">{{ flight.destination.code_iata|default(flight.destination.code|default('???')) }}</span>
+                            <span class="fl-ep-city">{{ flight.destination.city|default('') }}</span>
+                        </div>
+                        {% set gate_dst = flight.gate_destination|default(flight.destination.gate|default(null)) %}
+                        {% set term_dst = flight.terminal_destination|default(flight.destination.terminal|default(null)) %}
+                        {% if gate_dst or term_dst %}
+                            <div class="fl-ep-gate">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a4 4 0 0 0-8 0v2"></path></svg>
+                                {% if term_dst %}Terminal {{ term_dst }}{% endif %}{% if term_dst and gate_dst %} · {% endif %}{% if gate_dst %}Puerta {{ gate_dst }}{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── OPERATION TIMELINE ── #}
+                <div class="fl-timeline">
+                    <div class="fl-timeline-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Operación en Tiempo Real
+                    </div>
+                    <div class="fl-timeline-steps">
+                        {# ── Calcular estado de cada paso basado en la API ── #}
+
+                        {# 1. Primero calculamos el porcentaje visual de la línea #}
+                        {% set timeline_pct = 0 %}
+                        {% if is_arrived %}
+                            {% set timeline_pct = 100 %}
+                        {% elseif is_en_route %}
+                            {# En vuelo: mapeamos progress (0-100) al rango 20%-80% de la línea #}
+                            {% set timeline_pct = 20 + (progress * 0.6) %}
+                            {% if timeline_pct > 80 %}
+                                {% set timeline_pct = 80 %}
+                            {% endif %}
+                        {% elseif (flight.actual_out is defined and flight.actual_out) or real_status_text == 'EMBARCANDO' or real_status_text == 'RODANDO A PISTA' %}
+                            {# Embarque completo o en proceso pero no en vuelo aún #}
+                            {% set timeline_pct = 10 %}
+                        {% endif %}
+
+                        {# 2. Ahora definimos si cada paso está completado basado en ese porcentaje #}
+                        {% set step1_done = (flight.actual_out is defined and flight.actual_out) or is_en_route or is_arrived %}
+                        {% set step2_done = is_en_route or is_arrived %}
+                        {% set step3_done = (timeline_pct >= 40) or is_arrived %}
+                        {% set step4_done = (timeline_pct >= 60) or is_arrived %}
+                        {% set step5_done = (timeline_pct >= 80) or is_arrived %}
+                        {% set step6_done = is_arrived %}
+
+                        <div class="fl-timeline-line">
+                            <div class="fl-timeline-line-fill" style="width: {{ timeline_pct|round(1) }}%;"></div>
+                        </div>
+
+                        {# Step 1: Embarque Completo #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step1_done %}done{% elseif real_status_text == 'EMBARCANDO' %}current{% endif %}">1</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">Embarque<br>Completo</div>
+                                {% if flight.actual_out is defined and flight.actual_out %}<div class="fl-tl-time">{{ flight.actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        {# Step 2: Despegue Completado #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step2_done %}done{% elseif real_status_text == 'RODANDO A PISTA' %}current{% endif %}">2</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">Despegue<br>Completado</div>
+                                {% if flight.actual_off is defined and flight.actual_off %}<div class="fl-tl-time">{{ flight.actual_off|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        {# Step 3: En Crucero #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step3_done %}done{% endif %}">3</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">En<br>Crucero</div>
+                            </div>
+                        </div>
+
+                        {# Step 4: Descenso Iniciado #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step4_done %}done{% endif %}">4</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">Descenso<br>Iniciado</div>
+                            </div>
+                        </div>
+
+                        {# Step 5: Aproximación Final #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step5_done %}done{% endif %}">5</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">Aproxima-<br>ción Final</div>
+                            </div>
+                        </div>
+
+                        {# Step 6: Aterrizaje Completo #}
+                        <div class="fl-tl-step">
+                            <div class="fl-tl-dot {% if step6_done %}done{% endif %}">6</div>
+                            <div class="fl-tl-info">
+                                <div class="fl-tl-name">Aterrizaje<br>Completo</div>
+                                {% if flight.actual_on is defined and flight.actual_on %}<div class="fl-tl-time">{{ flight.actual_on|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                                {% if gate_dst %}<div class="fl-tl-time">{{ gate_dst }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── TECHNICAL DETAILS ── #}
+                <div class="fl-details">
+                    <div class="fl-details-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                        Detalles Técnicos y Operador
+                    </div>
+                    <div class="fl-details-grid">
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                {% set icao_op = flight.operator|default(flight.ident|slice(0,3)|upper) %}
+                                {% if icao_op|length >= 3 %}
+                                    <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_op|slice(0,3) }}.png" alt="{{ icao_op }}" onerror="this.outerHTML='<svg width=18 height=18 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#4361ee\' stroke-width=\'2\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>'">
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Aerolínea</div>
+                                <div class="fl-detail-value">{{ flight.operator|default(flight.ident|slice(0,3)|upper) }}</div>
+                            </div>
+                        </div>
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                {% set icao_logo = flight.operator_icao|default(flight.ident|slice(0,3)|upper) %}
+                                {% if icao_logo|length >= 3 %}
+                                    <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_logo|slice(0,3) }}.png" alt="{{ icao_logo }}" onerror="this.outerHTML='<svg width=18 height=18 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#4361ee\' stroke-width=\'2\'><rect x=\'3\' y=\'4\' width=\'18\' height=\'16\' rx=\'2\'></rect><line x1=\'16\' y1=\'2\' x2=\'16\' y2=\'6\'></line><line x1=\'8\' y1=\'2\' x2=\'8\' y2=\'6\'></line><line x1=\'3\' y1=\'10\' x2=\'21\' y2=\'10\'></line></svg>'">
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Código ICAO</div>
+                                <div class="fl-detail-value">{{ flight.operator_icao|default(flight.ident|slice(0,3)|upper) }}</div>
+                            </div>
+                        </div>
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Aeronave</div>
+                                <div class="fl-detail-value">{{ flight.aircraft_type|default('—') }}</div>
+                            </div>
+                        </div>
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Matrícula</div>
+                                <div class="fl-detail-value">{{ flight.registration|default('—') }}</div>
+                            </div>
+                        </div>
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Distancia</div>
+                                <div class="fl-detail-value">{{ flight.route_distance|default(0) > 0 ? flight.route_distance ~ ' NM' : '—' }}</div>
+                            </div>
+                        </div>
+                        <div class="fl-detail-item">
+                            <div class="fl-detail-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">FA ID</div>
+                                <div class="fl-detail-value" style="font-size: 0.72rem; word-break: break-all;">{{ flight.fa_flight_id|default('—') }}</div>
+                            </div>
+                        </div>
+                        {% if flight.codeshares is defined and flight.codeshares|length > 0 %}
+                        <div class="fl-detail-item" style="grid-column: 1 / -1;">
+                            <div class="fl-detail-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1"></rect></svg>
+                            </div>
+                            <div>
+                                <div class="fl-detail-label">Codeshares</div>
+                                <div class="fl-detail-value">{{ flight.codeshares|join(', ') }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <div class="card">
+                <div class="empty-state">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <p>No se encontraron registros recientes para ese número de vuelo. Verifica la aerolínea y el código.</p>
+                </div>
+            </div>
+        {% endif %}
+
+    {% elseif not error and searched_flight %}
+        <div class="card">
+            <div class="empty-state">
+                <p>Ocurrió un problema procesando los datos del vuelo.</p>
+            </div>
+        </div>
+    {% elseif not searched_flight and not error %}
+        <div class="card">
+            <div class="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <p>Busca información precisa y en tiempo real sobre vuelos operados a escala mundial.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
