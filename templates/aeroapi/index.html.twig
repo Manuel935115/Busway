@@ -157,23 +157,23 @@
     /* ── PROGRESS LINE ── */
     .fl-progress { padding: 20px 28px; border-bottom: 1px solid #f1f5f9; }
     .fl-progress-bar {
-        display: flex; align-items: center; justify-content: space-between;
-        position: relative; padding: 0 4px;
+        display: flex; align-items: flex-start; justify-content: space-between;
+        position: relative; padding: 0;
     }
     .fl-progress-line {
-        position: absolute; top: 50%; left: 20px; right: 20px;
+        position: absolute; top: 13px; left: 10%; right: 10%;
         height: 3px; background: #e2e8f0; border-radius: 4px;
-        transform: translateY(-50%); z-index: 0;
+        z-index: 0;
     }
     .fl-progress-fill {
         height: 100%; background: #4361ee; border-radius: 4px;
         transition: width .8s ease;
     }
-    .fl-progress-labels {
-        display: flex; justify-content: space-between;
-        margin-top: 6px; padding: 0 4px;
+    .fl-step {
+        display: flex; flex-direction: column; align-items: center; gap: 8px;
+        position: relative; z-index: 1; flex: 1; min-width: 0;
     }
-    .fl-prog-label { font-size: 0.6rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; text-align: center; flex: 1; }
+    .fl-prog-label { font-size: 0.6rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; text-align: center; white-space: nowrap; }
     .fl-prog-label.active { color: #4361ee; }
     .fl-prog-label.completed { color: #16a34a; }
 
@@ -498,65 +498,7 @@
                     {% set progress = 2 %}
                 {% endif %}
 
-                <div class="fl-progress">
-                    <div class="fl-progress-bar">
-                        <div class="fl-progress-line">
-                            <div class="fl-progress-fill" style="width: {{ progress|round(1) }}%;"></div>
-                        </div>
 
-                        {# 5 puntos: salida, despegue, crucero, descenso, llegada #}
-                        {# Usamos la misma lógica de la API que la timeline #}
-                        {% set dot_states = [
-                            { done: (flight.actual_out is defined and flight.actual_out) or progress > 0 or is_arrived },
-                            { done: progress >= 25 or is_arrived },
-                            { done: progress >= 50 or is_arrived },
-                            { done: progress >= 75 or is_arrived },
-                            { done: is_arrived }
-                        ] %}
-                        {% for dot in dot_states %}
-                            {% set dotClass = '' %}
-                            {% if dot.done %}
-                                {% set dotClass = 'completed' %}
-                            {% elseif loop.index0 == 0 and (real_status_text == 'EMBARCANDO' or real_status_text == 'RODANDO A PISTA') %}
-                                {% set dotClass = 'active' %}
-                            {% endif %}
-                            <div class="fl-progress-dot {{ dotClass }}">
-                                {% if dotClass == 'completed' %}
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                {% else %}
-                                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"></circle></svg>
-                                {% endif %}
-                            </div>
-                        {% endfor %}
-                    </div>
-                    <div class="fl-progress-labels">
-                        {% set lbl1_done = (flight.actual_out is defined and flight.actual_out) or is_en_route or is_arrived %}
-                        {% set lbl2_done = is_en_route or is_arrived %}
-                        {% set lbl3_done = progress >= 50 or is_arrived %}
-                        {% set lbl4_done = progress >= 85 or is_arrived %}
-                        {% set lbl5_done = is_arrived %}
-                        <div class="fl-prog-label {% if dot_states[0].done %}completed{% elseif real_status_text == 'EMBARCANDO' or real_status_text == 'RODANDO A PISTA' %}active{% endif %}">Salida</div>
-                        <div class="fl-prog-label {% if dot_states[1].done %}completed{% elseif not dot_states[1].done and dot_states[0].done %}active{% endif %}">Despegue</div>
-                        <div class="fl-prog-label {% if dot_states[2].done %}completed{% endif %}">En Crucero</div>
-                        <div class="fl-prog-label {% if dot_states[3].done %}completed{% endif %}">Descenso</div>
-                        <div class="fl-prog-label {% if dot_states[4].done %}completed{% endif %}">Llegada</div>
-                    </div>
-
-                    <div style="text-align: center; margin-top: 8px;">
-                        <span style="font-size: 0.72rem; font-weight: 700; color: #475569;">{{ real_status_text }}</span>
-                        {% if real_status_text == 'EN VUELO' or real_status_text == 'RODANDO A PISTA' %}
-                            {% set arrival_time = flight.estimated_in|default(flight.scheduled_in|default(null)) %}
-                            {% if arrival_time %}
-                                {% set seconds_remaining = (arrival_time|date('U')) - ('now'|date('U')) %}
-                                {% if seconds_remaining > 0 %}
-                                    {% set rem_h = (seconds_remaining / 3600)|round(0, 'floor') %}
-                                    {% set rem_m = ((seconds_remaining % 3600) / 60)|round(0, 'floor') %}
-                                    <span style="font-size: 0.72rem; color: #4361ee; font-weight: 700; margin-left: 6px;">· Llegada estimada en {{ rem_h }}h {{ rem_m }}min</span>
-                                {% endif %}
-                            {% endif %}
-                        {% endif %}
-                    </div>
-                </div>
 
                 {# ── DEPARTURE / ARRIVAL ── #}
                 <div class="fl-route-section">
@@ -566,13 +508,13 @@
                         {% set sched_out = flight.scheduled_out|default(null) %}
                         {% set actual_out = flight.actual_out|default(flight.estimated_out|default(null)) %}
                         <div class="fl-ep-time-row">
-                            <span class="fl-ep-time">{% if sched_out %}{{ sched_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
-                            <span class="fl-ep-date">{% if sched_out %}{{ sched_out|date('D d M', flight.origin.timezone|default('Europe/Madrid')) }}{% endif %}</span>
+                            <span class="fl-ep-time tz-time" data-time="{% if sched_out %}{{ sched_out|date('c') }}{% endif %}">{% if sched_out %}{{ sched_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
+                            <span class="fl-ep-date tz-date" data-time="{% if sched_out %}{{ sched_out|date('c') }}{% endif %}">{% if sched_out %}{{ sched_out|date('D d M', flight.origin.timezone|default('Europe/Madrid')) }}{% endif %}</span>
                             <span style="font-size:0.68rem; color:#94a3b8; font-weight:500;">(Programada)</span>
                         </div>
                         {% if actual_out %}
                             <div class="fl-ep-actual {% if flight.departure_delay is defined and flight.departure_delay > 0 %}late{% elseif flight.departure_delay is defined and flight.departure_delay < 0 %}early{% else %}ontime{% endif %}">
-                                Actual: {{ actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}
+                                Actual: <span class="tz-time" data-time="{{ actual_out|date('c') }}">{{ actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</span>
                                 {% if flight.departure_delay is defined and flight.departure_delay == 0 %} (A tiempo){% endif %}
                                 {% if flight.departure_delay is defined and flight.departure_delay > 0 %} (+{{ (flight.departure_delay / 60)|round }}min){% endif %}
                                 {% if flight.departure_delay is defined and flight.departure_delay < 0 %} ({{ (flight.departure_delay / 60)|round|abs }}min adelanto){% endif %}
@@ -598,13 +540,13 @@
                         {% set sched_in = flight.scheduled_in|default(flight.scheduled_on|default(null)) %}
                         {% set actual_in = flight.actual_on|default(flight.estimated_on|default(flight.estimated_in|default(null))) %}
                         <div class="fl-ep-time-row">
-                            <span class="fl-ep-time">{% if sched_in %}{{ sched_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
-                            <span class="fl-ep-date">{% if sched_in %}{{ sched_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}{% endif %}</span>
+                            <span class="fl-ep-time tz-time" data-time="{% if sched_in %}{{ sched_in|date('c') }}{% endif %}">{% if sched_in %}{{ sched_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}{% else %}--:--{% endif %}</span>
+                            <span class="fl-ep-date tz-date" data-time="{% if sched_in %}{{ sched_in|date('c') }}{% endif %}">{% if sched_in %}{{ sched_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}{% endif %}</span>
                             <span style="font-size:0.68rem; color:#94a3b8; font-weight:500;">(Programada)</span>
                         </div>
                         {% if actual_in %}
                             <div class="fl-ep-actual {% if flight.arrival_delay is defined and flight.arrival_delay > 0 %}late{% elseif flight.arrival_delay is defined and flight.arrival_delay < 0 %}early{% else %}ontime{% endif %}">
-                                Estimada: <span style="font-weight:800;">{{ actual_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</span>, {{ actual_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}
+                                Estimada: <span style="font-weight:800;" class="tz-time" data-time="{{ actual_in|date('c') }}">{{ actual_in|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</span>, <span class="tz-date" data-time="{{ actual_in|date('c') }}">{{ actual_in|date('D d M', flight.destination.timezone|default('Europe/Madrid')) }}</span>
                                 {% if flight.arrival_delay is defined and flight.arrival_delay > 0 %}
                                     <span style="display:inline-block; margin-left:6px; background:#fef2f2; color:#dc2626; padding:2px 8px; border-radius:6px; font-size:0.68rem; font-weight:700;">
                                         RETRASO +{{ (flight.arrival_delay / 60)|round }}min
@@ -673,7 +615,7 @@
                             <div class="fl-tl-dot {% if step1_done %}done{% elseif real_status_text == 'EMBARCANDO' %}current{% endif %}">1</div>
                             <div class="fl-tl-info">
                                 <div class="fl-tl-name">Embarque<br>Completo</div>
-                                {% if flight.actual_out is defined and flight.actual_out %}<div class="fl-tl-time">{{ flight.actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                                {% if flight.actual_out is defined and flight.actual_out %}<div class="fl-tl-time tz-time" data-time="{{ flight.actual_out|date('c') }}">{{ flight.actual_out|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
                             </div>
                         </div>
 
@@ -682,7 +624,7 @@
                             <div class="fl-tl-dot {% if step2_done %}done{% elseif real_status_text == 'RODANDO A PISTA' %}current{% endif %}">2</div>
                             <div class="fl-tl-info">
                                 <div class="fl-tl-name">Despegue<br>Completado</div>
-                                {% if flight.actual_off is defined and flight.actual_off %}<div class="fl-tl-time">{{ flight.actual_off|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                                {% if flight.actual_off is defined and flight.actual_off %}<div class="fl-tl-time tz-time" data-time="{{ flight.actual_off|date('c') }}">{{ flight.actual_off|date('H:i', flight.origin.timezone|default('Europe/Madrid')) }}</div>{% endif %}
                             </div>
                         </div>
 
@@ -715,7 +657,7 @@
                             <div class="fl-tl-dot {% if step6_done %}done{% endif %}">6</div>
                             <div class="fl-tl-info">
                                 <div class="fl-tl-name">Aterrizaje<br>Completo</div>
-                                {% if flight.actual_on is defined and flight.actual_on %}<div class="fl-tl-time">{{ flight.actual_on|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</div>{% endif %}
+                                {% if flight.actual_on is defined and flight.actual_on %}<div class="fl-tl-time tz-time" data-time="{{ flight.actual_on|date('c') }}">{{ flight.actual_on|date('H:i', flight.destination.timezone|default('Europe/Madrid')) }}</div>{% endif %}
                                 {% if gate_dst %}<div class="fl-tl-time">{{ gate_dst }}</div>{% endif %}
                             </div>
                         </div>
@@ -777,7 +719,7 @@
                             </div>
                             <div>
                                 <div class="fl-detail-label">Distancia</div>
-                                <div class="fl-detail-value">{{ flight.route_distance|default(0) > 0 ? flight.route_distance ~ ' NM' : '—' }}</div>
+                                <div class="fl-detail-value">{{ flight.route_distance|default(0) > 0 ? (flight.route_distance * 1.852)|round(0) ~ ' km' : '—' }}</div>
                             </div>
                         </div>
                         <div class="fl-detail-item">
@@ -828,4 +770,25 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.tz-time').forEach(el => {
+        if(el.dataset.time) {
+            const d = new Date(el.dataset.time);
+            if (!isNaN(d.getTime())) {
+                el.innerText = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+    });
+    document.querySelectorAll('.tz-date').forEach(el => {
+        if(el.dataset.time) {
+            const d = new Date(el.dataset.time);
+            if (!isNaN(d.getTime())) {
+                el.innerText = d.toLocaleDateString([], {weekday: 'short', day: '2-digit', month: 'short'});
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

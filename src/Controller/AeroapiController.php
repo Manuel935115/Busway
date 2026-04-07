@@ -111,7 +111,7 @@ class AeroapiController extends AbstractController
                                     $em->persist($estado);
                                 }
                                 
-                                // 2. VUELO
+                                // 2. VUELO (Actualizar si existe)
                                 $vuelo = $em->getRepository(Vuelo::class)->findOneBy(['numero' => $flightNumber]);
                                 if (!$vuelo) {
                                     $vuelo = new Vuelo();
@@ -119,10 +119,20 @@ class AeroapiController extends AbstractController
                                 }
                                 
                                 if (!empty($bestFlight['scheduled_out'])) {
-                                    $vuelo->setHoraSalida(new \DateTime($bestFlight['scheduled_out']));
+                                    $vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));
                                 }
                                 if (!empty($bestFlight['scheduled_in'])) {
-                                    $vuelo->setHoraLlegada(new \DateTime($bestFlight['scheduled_in']));
+                                    $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
+                                }
+                                
+                                $actualOut = $bestFlight['actual_out'] ?? $bestFlight['estimated_out'] ?? $bestFlight['scheduled_out'] ?? null;
+                                if ($actualOut) {
+                                    $vuelo->setHoraSalidaReal(new \DateTime($actualOut));
+                                }
+                                
+                                $actualIn = $bestFlight['actual_in'] ?? $bestFlight['estimated_in'] ?? $bestFlight['scheduled_in'] ?? null;
+                                if ($actualIn) {
+                                    $vuelo->setHoraLlegadaReal(new \DateTime($actualIn));
                                 }
                                 $vuelo->setEstadoActual($estado);
                                 $em->persist($vuelo);
@@ -148,7 +158,8 @@ class AeroapiController extends AbstractController
                                 
                                 $estadoVuelo->setRawData($bestFlight);
                                 $em->persist($estadoVuelo);
-                                
+                                $em->persist($vuelo); // Re-persist para asegurar cambios
+
                                 $em->flush();
                             } catch (\Exception $e) { 
                                 $error = "Error al guardar en Base de Datos: " . $e->getMessage();
@@ -170,19 +181,30 @@ class AeroapiController extends AbstractController
     #[Route('/historial', name: 'app_aeroapi_historial')]
     public function historial(EntityManagerInterface $em): Response
     {
-        // Obtener solo el registro más reciente de cada vuelo (sin duplicados)
-        $records = $em->createQueryBuilder()
-            ->select('ev')
-            ->from(EstadoVuelo::class, 'ev')
-            ->where('ev.id IN (
-                SELECT MAX(ev2.id) FROM App\Entity\EstadoVuelo ev2 GROUP BY ev2.vuelo
-            )')
-            ->orderBy('ev.fechaHora', 'DESC')
-            ->getQuery()
-            ->getResult();
+        // Obtener todo el historial ordenado por los más recientes
+        $records = $em->getRepository(EstadoVuelo::class)->findBy([], ['fechaHora' => 'DESC']);
 
         return $this->render('aeroapi/historial.html.twig', [
             'records' => $records,
         ]);
+    }
+    #[Route('/historial/eliminar/{id}', name: 'app_aeroapi_eliminar', methods: ['POST'])]
+    public function eliminar(int $id, EntityManagerInterface $em): Response
+    {
+        $estadoVuelo = $em->getRepository(EstadoVuelo::class)->find($id);
+        if ($estadoVuelo) {
+            $vuelo = $estadoVuelo->getVuelo();
+            $em->remove($estadoVuelo);
+            
+            // Verificar si otros historiales usan este vuelo
+            $otros = $em->getRepository(EstadoVuelo::class)->count(['vuelo' => $vuelo]);
+            if ($otros === 1 && $vuelo) { // 1 es el que acabamos de marcar para borrar
+                $em->remove($vuelo);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Registro eliminado correctamente.');
+        }
+
+        return $this->redirectToRoute('app_aeroapi_historial');
     }
 }

@@ -18,10 +18,16 @@ class Vuelo
     private ?string $numero = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $horaSalida = null;
+    private ?\DateTimeInterface $horaSalidaProgramada = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $horaLlegada = null;
+    private ?\DateTimeInterface $horaLlegadaProgramada = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $horaSalidaReal = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $horaLlegadaReal = null;
 
     #[ORM\ManyToOne(targetEntity: Estado::class)]
     #[ORM\JoinColumn(nullable: true)]
@@ -43,25 +49,47 @@ class Vuelo
         return $this;
     }
 
-    public function getHoraSalida(): ?\DateTimeInterface
+    public function getHoraSalidaProgramada(): ?\DateTimeInterface
     {
-        return $this->horaSalida;
+        return $this->horaSalidaProgramada;
     }
 
-    public function setHoraSalida(?\DateTimeInterface $horaSalida): self
+    public function setHoraSalidaProgramada(?\DateTimeInterface $horaSalidaProgramada): self
     {
-        $this->horaSalida = $horaSalida;
+        $this->horaSalidaProgramada = $horaSalidaProgramada;
         return $this;
     }
 
-    public function getHoraLlegada(): ?\DateTimeInterface
+    public function getHoraLlegadaProgramada(): ?\DateTimeInterface
     {
-        return $this->horaLlegada;
+        return $this->horaLlegadaProgramada;
     }
 
-    public function setHoraLlegada(?\DateTimeInterface $horaLlegada): self
+    public function setHoraLlegadaProgramada(?\DateTimeInterface $horaLlegadaProgramada): self
     {
-        $this->horaLlegada = $horaLlegada;
+        $this->horaLlegadaProgramada = $horaLlegadaProgramada;
+        return $this;
+    }
+
+    public function getHoraSalidaReal(): ?\DateTimeInterface
+    {
+        return $this->horaSalidaReal;
+    }
+
+    public function setHoraSalidaReal(?\DateTimeInterface $horaSalidaReal): self
+    {
+        $this->horaSalidaReal = $horaSalidaReal;
+        return $this;
+    }
+
+    public function getHoraLlegadaReal(): ?\DateTimeInterface
+    {
+        return $this->horaLlegadaReal;
+    }
+
+    public function setHoraLlegadaReal(?\DateTimeInterface $horaLlegadaReal): self
+    {
+        $this->horaLlegadaReal = $horaLlegadaReal;
         return $this;
     }
 
