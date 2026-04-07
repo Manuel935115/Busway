@@ -1,0 +1,427 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Busway — Rastreo de Trenes en Tiempo Real{% endblock %}
+
+{% block stylesheets %}
+<style>
+    /* Estilos específicos de trenes */
+    .content-wrap { max-width: 920px; }
+
+    /* ── SEARCH ── */
+    .search-section { margin-bottom: 24px; }
+    .search-bar {
+        background: #fff;
+        border-radius: 16px;
+        display: flex; align-items: center;
+        padding: 6px 6px 6px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.06);
+        transition: all .3s;
+    }
+    .search-bar:focus-within {
+        box-shadow: 0 0 0 3px rgba(16,163,74,0.12), 0 8px 24px rgba(0,0,0,0.06);
+        border-color: #16a34a;
+    }
+    .search-icon { color: #94a3b8; margin-right: 4px; flex-shrink: 0; }
+    .search-bar input {
+        flex: 1; border: none; outline: none;
+        font-size: 0.92rem; color: #1e293b; font-weight: 500;
+        background: transparent; padding: 10px 12px;
+        font-family: inherit;
+    }
+    .search-bar input::placeholder { color: #94a3b8; font-weight: 400; }
+    .search-bar button {
+        background: #16a34a; color: #fff; border: none;
+        border-radius: 12px; padding: 12px 28px;
+        font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        font-family: inherit; letter-spacing: 0.3px;
+        transition: all .15s;
+    }
+    .search-bar button:hover { background: #15803d; transform: scale(1.05); box-shadow: 0 0 16px rgba(16,163,74,0.45); }
+
+    /* ── DELAY ALERT ── */
+    .delay-alert {
+        border-radius: 14px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 14px;
+        margin-bottom: 20px; font-size: 0.88rem;
+        animation: fadeIn 0.5s ease;
+    }
+    .delay-alert-icon {
+        width: 38px; height: 38px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; background: rgba(255,255,255,0.25);
+    }
+    .delay-alert-content h4 { font-size: 0.88rem; font-weight: 700; margin: 0; }
+    .delay-alert-content p  { font-size: 0.78rem; margin: 2px 0 0; opacity: 0.9; font-weight: 500; }
+    .alert-delay-red    { background: #dc2626; color: #fff; }
+    .alert-delay-orange { background: #ea580c; color: #fff; }
+    .alert-delay-yellow { background: #d97706; color: #fff; }
+    .alert-delay-none   { background: #16a34a; color: #fff; }
+
+    /* ── CARD ── */
+    .train-card {
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
+        overflow: hidden;
+        animation: fadeInUp 0.5s ease;
+    }
+
+    /* ── HEADER ── */
+    .tr-header {
+        padding: 22px 28px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .tr-header-left { display: flex; align-items: center; gap: 16px; }
+    .tr-type-icon {
+        width: 44px; height: 44px; border-radius: 10px;
+        background: #f0fdf4; border: 1px solid #bbf7d0;
+        display: flex; align-items: center; justify-content: center;
+        color: #16a34a;
+    }
+    .tr-ident { font-size: 1.1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
+    .tr-meta  { font-size: 0.78rem; color: #64748b; font-weight: 500; margin-top: 1px; }
+
+    .badge {
+        padding: 5px 14px; border-radius: 8px;
+        font-size: 0.68rem; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 1.2px;
+    }
+    .badge-green  { background: #16a34a; color: #fff; }
+    .badge-red    { background: #dc2626; color: #fff; }
+    .badge-orange { background: #ea580c; color: #fff; }
+    .badge-blue   { background: #4361ee; color: #fff; }
+    .badge-gray   { background: #64748b; color: #fff; }
+
+    /* ── PROGRESS BAR ── */
+    .tr-progress { padding: 20px 28px; border-bottom: 1px solid #f1f5f9; }
+    .tr-progress-label {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #64748b; margin-bottom: 12px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .tr-progress-label svg { color: #16a34a; }
+    .tr-bar-track {
+        height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;
+    }
+    .tr-bar-fill {
+        height: 100%; background: linear-gradient(90deg, #16a34a, #22c55e);
+        border-radius: 4px; transition: width .8s ease;
+    }
+    .tr-stops-row {
+        display: flex; justify-content: space-between;
+        margin-top: 8px;
+        font-size: 0.68rem; font-weight: 700; color: #94a3b8;
+    }
+    .tr-stops-row .active-stop { color: #16a34a; }
+
+    /* ── ROUTE ── */
+    .tr-route-section {
+        padding: 24px 28px;
+        display: flex; gap: 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .tr-ep {
+        flex: 1; padding: 16px 20px;
+        border-radius: 14px; background: #f8fafc;
+        border: 1px solid #f1f5f9;
+    }
+    .tr-ep + .tr-ep { margin-left: 16px; }
+    .tr-ep-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px;
+    }
+    .tr-ep-name { font-size: 0.95rem; font-weight: 800; color: #0f172a; }
+    .tr-ep-sub  { font-size: 0.78rem; color: #64748b; margin-top: 4px; font-weight: 500; }
+
+    /* ── STOP HIGHLIGHT ── */
+    .tr-next-section {
+        padding: 20px 28px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex; gap: 16px; align-items: flex-start;
+    }
+    .tr-next-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: #16a34a; flex-shrink: 0; margin-top: 5px;
+        box-shadow: 0 0 0 4px rgba(22,163,74,0.2);
+        animation: pulse 2s infinite;
+    }
+    .tr-next-label { font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+    .tr-next-name  { font-size: 1rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
+    .tr-next-time  { font-size: 0.82rem; color: #16a34a; font-weight: 700; margin-top: 3px; }
+
+    /* ── DETAILS GRID ── */
+    .tr-details { padding: 24px 28px; }
+    .tr-details-header {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: #64748b; margin-bottom: 20px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .tr-details-header svg { color: #16a34a; }
+    .tr-details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .tr-detail-item { display: flex; align-items: flex-start; gap: 12px; }
+    .tr-detail-icon {
+        width: 40px; height: 40px; border-radius: 12px;
+        background: #f0fdf4; color: #16a34a;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .tr-detail-label { font-size: 0.62rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
+    .tr-detail-value { font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+
+    /* ── MORE RESULTS ── */
+    .more-results { margin-top: 8px; }
+    .more-results-header {
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+        color: #64748b; text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+    .more-results table { width: 100%; border-collapse: collapse; }
+    .more-results th {
+        background: #f8fafc; padding: 10px 16px;
+        font-size: 0.65rem; font-weight: 700; color: #64748b;
+        text-transform: uppercase; letter-spacing: 1px;
+        border-bottom: 1px solid #f1f5f9; text-align: left;
+    }
+    .more-results td { padding: 12px 16px; font-size: 0.82rem; border-top: 1px solid #f8fafc; }
+    .more-results tbody tr:hover { background: #f8fafb; }
+    .delay-pill {
+        display: inline-block; padding: 3px 10px; border-radius: 8px;
+        font-size: 0.68rem; font-weight: 800;
+    }
+    .delay-pill.red    { background: #fef2f2; color: #dc2626; }
+    .delay-pill.orange { background: #fff7ed; color: #ea580c; }
+    .delay-pill.green  { background: #f0fdf4; color: #16a34a; }
+
+    .alert-error {
+        background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
+        border-radius: 14px; padding: 14px 20px; margin-bottom: 20px;
+        font-size: 0.85rem; font-weight: 600;
+        display: flex; align-items: center; gap: 10px;
+    }
+
+    .empty-state {
+        text-align: center; padding: 60px 24px; color: #94a3b8;
+    }
+    .empty-state svg { margin-bottom: 12px; color: #cbd5e1; }
+    .empty-state p { font-size: 0.88rem; font-weight: 500; max-width: 380px; margin: 0 auto; line-height: 1.6; }
+
+    @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse     { 0%,100% { box-shadow: 0 0 0 4px rgba(22,163,74,0.2); } 50% { box-shadow: 0 0 0 8px rgba(22,163,74,0.06); } }
+
+    @media (max-width:768px) {
+        .tr-route-section { flex-direction: column; }
+        .tr-ep + .tr-ep { margin-left: 0; margin-top: 12px; }
+        .tr-details-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+    }
+    @media (max-width:480px) {
+        .tr-details-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="content-wrap">
+
+    {# ── SEARCH ── #}
+    <div class="search-section">
+        <form method="get" action="{{ path('app_trenes') }}" class="search-bar">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
+            <input type="text" name="tren" placeholder="Código de tren… ej. 03940, 02201, AVE" value="{{ searched|default('') }}" required autocomplete="off">
+            <button type="submit">Rastrear</button>
+        </form>
+    </div>
+
+    {# ── ERROR ── #}
+    {% if error %}
+        <div class="alert-error">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ error }}
+        </div>
+    {% endif %}
+
+    {# ── TRAIN CARD ── #}
+    {% if train %}
+        {% set delay = train.ult_retraso|default(0) %}
+
+        {# Alerta de retraso #}
+        {% if delay > 0 %}
+            {% set tier = delay > 30 ? 'alert-delay-red' : (delay > 10 ? 'alert-delay-orange' : 'alert-delay-yellow') %}
+            <div class="delay-alert {{ tier }}">
+                <div class="delay-alert-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="delay-alert-content">
+                    <h4>⚠ Retraso de {{ delay }} minutos</h4>
+                    <p>El tren {{ train.cod_comercial }} lleva actualmente {{ delay }} min de demora.</p>
+                </div>
+            </div>
+        {% elseif delay == 0 %}
+            <div class="delay-alert alert-delay-none">
+                <div class="delay-alert-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="delay-alert-content">
+                    <h4>A tiempo</h4>
+                    <p>El tren circula sin retrasos registrados en este momento.</p>
+                </div>
+            </div>
+        {% endif %}
+
+        {# Badge de estado según el retraso #}
+        {% set badgeClass = delay == 0 ? 'badge-green' : (delay > 30 ? 'badge-red' : 'badge-orange') %}
+        {% set statusText = delay == 0 ? 'A TIEMPO' : (delay > 30 ? 'RETRASO ALTO' : 'RETRASO') %}
+
+        <div class="train-card">
+            {# HEADER #}
+            <div class="tr-header">
+                <div class="tr-header-left">
+                    <div class="tr-type-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/>
+                            <path d="M8 19l-2 3"/><path d="M18 22l-2-3"/>
+                            <path d="M8 15h.01"/><path d="M16 15h.01"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="tr-ident">{{ train.cod_comercial }}</div>
+                        <div class="tr-meta">{{ train.product_name|default('—') }}{% if train.mat is defined and train.mat %} · Mat. {{ train.mat }}{% endif %}</div>
+                    </div>
+                </div>
+                <span class="badge {{ badgeClass }}">{{ statusText }}</span>
+            </div>
+
+            {# ROUTE #}
+            <div class="tr-route-section">
+                <div class="tr-ep">
+                    <div class="tr-ep-label">Origen</div>
+                    <div class="tr-ep-name">{{ train.origin_name|default('—') }}</div>
+                    {% if train.cod_origen is defined %}<div class="tr-ep-sub">Código: {{ train.cod_origen }}</div>{% endif %}
+                    {% if train.previous_station_name is defined and train.previous_station_name %}
+                        <div class="tr-ep-sub" style="margin-top:8px; font-size:0.72rem;">Última estación: <strong>{{ train.previous_station_name }}</strong></div>
+                    {% endif %}
+                </div>
+                <div class="tr-ep">
+                    <div class="tr-ep-label">Destino Final</div>
+                    <div class="tr-ep-name">{{ train.destination_name|default('—') }}</div>
+                    {% if train.cod_destino is defined %}<div class="tr-ep-sub">Código: {{ train.cod_destino }}</div>{% endif %}
+                </div>
+            </div>
+
+            {# PROXIMA ESTACIÓN #}
+            {% if train.next_station_name is defined and train.next_station_name %}
+            <div class="tr-next-section">
+                <div class="tr-next-dot"></div>
+                <div>
+                    <div class="tr-next-label">Próxima parada</div>
+                    <div class="tr-next-name">{{ train.next_station_name }}</div>
+                    {% if train.hora_llegada_sig_est is defined and train.hora_llegada_sig_est %}
+                        <div class="tr-next-time">Llegada estimada: <span class="tz-time" data-time="{{ train.hora_llegada_sig_est }}">{{ train.hora_llegada_sig_est|date('H:i') }}</span></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# DETAILS #}
+            <div class="tr-details">
+                <div class="tr-details-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Información del trayecto
+                </div>
+                <div class="tr-details-grid">
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Retraso actual</div>
+                            <div class="tr-detail-value" style="color:{{ delay > 0 ? '#dc2626' : '#16a34a' }}">
+                                {{ delay > 0 ? '+' ~ delay ~ ' min' : 'Sin retraso' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Tipo de tren</div>
+                            <div class="tr-detail-value">{{ train.product_name|default('—') }}</div>
+                        </div>
+                    </div>
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Corredor</div>
+                            <div class="tr-detail-value">{{ train.des_corridor|default('—') }}</div>
+                        </div>
+                    </div>
+                    {% if train.accesible is defined %}
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Accesible</div>
+                            <div class="tr-detail-value">{{ train.accesible ? '✓ Sí' : '✗ No' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if train.mat is defined and train.mat %}
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Matrícula</div>
+                            <div class="tr-detail-value">{{ train.mat }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if train.gps_time is defined and train.gps_time %}
+                    <div class="tr-detail-item">
+                        <div class="tr-detail-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div>
+                            <div class="tr-detail-label">Última señal GPS</div>
+                            <div class="tr-detail-value"><span class="tz-time" data-time="{{ train.gps_time * 1000 }}">—</span></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+
+    {% elseif not searched %}
+        <div class="train-card">
+            <div class="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
+                <p>Introduce un código de tren para rastrearlo en tiempo real. Datos de Renfe vía <strong>Retrasómetro</strong>.</p>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Horas en zona horaria local del navegador
+    document.querySelectorAll('.tz-time').forEach(el => {
+        const raw = el.dataset.time;
+        if (!raw) return;
+        // Si es timestamp Unix (ms) o ISO
+        const d = isNaN(raw) ? new Date(raw) : new Date(parseInt(raw));
+        if (!isNaN(d.getTime())) {
+            el.innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+    });
+});
+</script>
+{% endblock %}

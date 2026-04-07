@@ -5,55 +5,7 @@
 {% block stylesheets %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: #1e293b;
-        -webkit-font-smoothing: antialiased;
-        background: #eef2f7;
-        min-height: 100vh;
-    }
-
-    .page-bg {
-        position: fixed; inset: 0; z-index: 0;
-        background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #f1f5f9 70%, #fce7f3 100%);
-    }
-    .page-bg::before {
-        content: '';
-        position: absolute; inset: 0;
-        background: url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=60&w=1920&auto=format&fit=crop') center/cover no-repeat;
-        opacity: 0.12;
-        filter: blur(2px);
-    }
-
-    .nav {
-        position: sticky; top: 0; z-index: 100;
-        background: rgba(255,255,255,0.92);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-bottom: 1px solid rgba(0,0,0,0.06);
-        height: 56px;
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 0 40px;
-    }
-    .nav-brand { display: flex; align-items: center; gap: 6px; }
-    .nav-brand img { height: 38px; }
-    .nav-links { display: flex; gap: 28px; font-size: 0.82rem; font-weight: 600; }
-    .nav-links a {
-        text-decoration: none; color: #64748b; transition: color .2s;
-        position: relative; padding-bottom: 2px;
-    }
-    .nav-links a:hover, .nav-links a.active { color: #1e293b; }
-    .nav-links a.active::after {
-        content: ''; position: absolute; bottom: -4px; left: 0; right: 0;
-        height: 2px; background: #4361ee; border-radius: 2px;
-    }
-
-    .content-wrap {
-        position: relative; z-index: 1;
-        max-width: 1060px; margin: 0 auto;
-        padding: 28px 24px 60px;
-    }
+    /* Estilos específicos de esta vista */
 
     .header {
         margin-bottom: 24px;
@@ -146,8 +98,6 @@
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
     @media (max-width: 768px) {
-        .nav { padding: 0 20px; }
-        .content-wrap { padding: 20px 16px 40px; }
         .header { flex-direction: column; gap: 12px; align-items: flex-start; }
         th, td { padding: 12px 14px; font-size: 0.78rem; }
     }
@@ -155,19 +105,6 @@
 {% endblock %}
 
 {% block body %}
-<div class="page-bg"></div>
-
-<div class="nav">
-    <div class="nav-brand">
-        <a href="{{ path('app_aeroapi') }}">
-            <img src="{{ app.request.getBasePath() }}/images/logo_original.png" alt="Busway">
-        </a>
-    </div>
-    <div class="nav-links">
-        <a href="{{ path('app_aeroapi') }}">Buscar Vuelo</a>
-        <a href="{{ path('app_aeroapi_historial') }}" class="active">Historial</a>
-    </div>
-</div>
 
 <div class="content-wrap">
     <div class="header">
