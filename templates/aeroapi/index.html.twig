@@ -88,12 +88,12 @@
     }
     .fl-header-left { display: flex; align-items: center; gap: 16px; }
     .fl-airline-logo {
-        width: 44px; height: 44px; border-radius: 10px;
+        width: 60px; height: 60px; border-radius: 12px;
         background: #f8fafc; border: 1px solid #e2e8f0;
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;
     }
-    .fl-airline-logo img { width: 36px; height: 36px; object-fit: contain; }
+    .fl-airline-logo img { width: 48px; height: 48px; object-fit: contain; }
     .fl-ident { font-size: 1.1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
     .fl-meta { font-size: 0.78rem; color: #64748b; font-weight: 500; margin-top: 1px; }
     .badge {
@@ -221,13 +221,13 @@
     .fl-details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .fl-detail-item { display: flex; align-items: flex-start; gap: 12px; }
     .fl-detail-icon {
-        width: 40px; height: 40px; border-radius: 12px;
+        width: 48px; height: 48px; border-radius: 14px;
         background: #f1f5f9; color: #4361ee;
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }
     .fl-detail-icon img {
-        width: 32px; height: 32px; object-fit: contain; border-radius: 6px;
+        width: 38px; height: 38px; object-fit: contain; border-radius: 6px;
     }
     .fl-detail-label { font-size: 0.62rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
     .fl-detail-value { font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
@@ -394,10 +394,10 @@
                 <div class="fl-header">
                     <div class="fl-header-left">
                         <div class="fl-airline-logo">
-                            {% set icao_code = flight.operator|default(flight.ident|slice(0,3)|upper) %}
-                            {% if icao_code|length >= 3 %}
-                                <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_code|slice(0,3) }}.png" alt="{{ icao_code }}" onerror="this.parentElement.innerHTML='<svg width=20 height=20 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#94a3b8\' stroke-width=\'1.5\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>'">
-                            {% endif %}
+                            {% set icao_code = flight.operator_icao|default(flight.operator|default(flight.ident|slice(0,3)|upper)) %}
+                            {% set iata_code = flight.operator_iata|default(flight.ident|slice(0,2)|upper) %}
+                            <img src="https://content.airhex.com/content/logos/airlines_{{ iata_code }}_100_100_s.png" alt="{{ icao_code }}"
+                                 onerror="this.src='https://pics.avs.io/ab_icons/150/{{ icao_code|slice(0,3) }}.png'; this.onerror=function(){this.parentElement.innerHTML='<svg width=20 height=20 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#94a3b8\' stroke-width=\'1.5\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>';}">
                         </div>
                         <div>
                             <div class="fl-ident">{{ flight.ident }}</div>
@@ -611,10 +611,11 @@
                     <div class="fl-details-grid">
                         <div class="fl-detail-item">
                             <div class="fl-detail-icon">
-                                {% set icao_op = flight.operator|default(flight.ident|slice(0,3)|upper) %}
-                                {% if icao_op|length >= 3 %}
-                                    <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_op|slice(0,3) }}.png" alt="{{ icao_op }}" onerror="this.outerHTML='<svg width=18 height=18 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#4361ee\' stroke-width=\'2\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>'">
-                                {% endif %}
+                                {% set icao_op = flight.operator_icao|default(flight.operator|default(flight.ident|slice(0,3)|upper)) %}
+                                {% set iata_op = flight.operator_iata|default(flight.ident|slice(0,2)|upper) %}
+                                <img src="https://content.airhex.com/content/logos/airlines_{{ iata_op }}_100_100_s.png" alt="{{ icao_op }}"
+                                     style="width:32px;height:32px;object-fit:contain;border-radius:6px;"
+                                     onerror="this.src='https://pics.avs.io/ab_icons/150/{{ icao_op|slice(0,3) }}.png'; this.onerror=function(){this.outerHTML='<svg width=18 height=18 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#4361ee\' stroke-width=\'2\'><path d=\'M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z\'></path></svg>';};">
                             </div>
                             <div>
                                 <div class="fl-detail-label">Aerolínea</div>
@@ -624,9 +625,7 @@
                         <div class="fl-detail-item">
                             <div class="fl-detail-icon">
                                 {% set icao_logo = flight.operator_icao|default(flight.ident|slice(0,3)|upper) %}
-                                {% if icao_logo|length >= 3 %}
-                                    <img src="https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_logo|slice(0,3) }}.png" alt="{{ icao_logo }}" onerror="this.outerHTML='<svg width=18 height=18 viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#4361ee\' stroke-width=\'2\'><rect x=\'3\' y=\'4\' width=\'18\' height=\'16\' rx=\'2\'></rect><line x1=\'16\' y1=\'2\' x2=\'16\' y2=\'6\'></line><line x1=\'8\' y1=\'2\' x2=\'8\' y2=\'6\'></line><line x1=\'3\' y1=\'10\' x2=\'21\' y2=\'10\'></line></svg>'">
-                                {% endif %}
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                             </div>
                             <div>
                                 <div class="fl-detail-label">Código ICAO</div>

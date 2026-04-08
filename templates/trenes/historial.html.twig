@@ -51,6 +51,14 @@
     .btn-delete:hover { background: #dc2626; color: #fff; }
 
     .empty { padding: 60px 24px; text-align: center; color: #94a3b8; }
+
+    .op-logo {
+        width: 48px; height: 48px; border-radius: 10px;
+        background: #fff; border: 1px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden; padding: 4px;
+    }
+    .op-logo img { width: 100%; height: 100%; object-fit: contain; }
 </style>
 {% endblock %}
 
@@ -77,6 +85,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Operador</th>
                         <th>Tren</th>
                         <th>Tipo</th>
                         <th>Origen → Destino</th>
@@ -88,6 +97,18 @@
                 <tbody>
                     {% for r in records %}
                         <tr>
+                            <td>
+                                <div class="op-logo">
+                                    {% set t = r.tren.tipo|upper %}
+                                    {% if 'OUIGO' in t %}
+                                        <img src="{{ app.request.getBasePath() }}/images/operators/ouigo.png" alt="Ouigo">
+                                    {% elseif 'IRYO' in t %}
+                                        <img src="{{ app.request.getBasePath() }}/images/operators/iryo.png" alt="Iryo">
+                                    {% else %}
+                                        <img src="{{ app.request.getBasePath() }}/images/operators/renfe.png" alt="Renfe">
+                                    {% endif %}
+                                </div>
+                            </td>
                             <td>
                                 <span class="train-num">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/></svg>

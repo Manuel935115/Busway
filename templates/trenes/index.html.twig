@@ -76,7 +76,7 @@
     }
     .tr-header-left { display: flex; align-items: center; gap: 16px; }
     .tr-type-icon {
-        width: 44px; height: 44px; border-radius: 10px;
+        width: 60px; height: 60px; border-radius: 12px;
         background: #f0fdf4; border: 1px solid #bbf7d0;
         display: flex; align-items: center; justify-content: center;
         color: #16a34a;
@@ -279,12 +279,15 @@
             {# HEADER #}
             <div class="tr-header">
                 <div class="tr-header-left">
-                    <div class="tr-type-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/>
-                            <path d="M8 19l-2 3"/><path d="M18 22l-2-3"/>
-                            <path d="M8 15h.01"/><path d="M16 15h.01"/>
-                        </svg>
+                    <div class="tr-type-icon" style="background:#fff; padding:4px;">
+                        {% set t = train.product_name|upper|default('') %}
+                        {% if 'OUIGO' in t %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/ouigo.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% elseif 'IRYO' in t %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/iryo.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% else %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/renfe.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% endif %}
                     </div>
                     <div>
                         <div class="tr-ident">{{ train.cod_comercial }}</div>
