@@ -143,26 +143,4 @@ class TrenesController extends AbstractController
         ]);
     }
 
-    #[Route('/trenes/historial', name: 'app_trenes_historial')]
-    public function historial(EntityManagerInterface $em): Response
-    {
-        $records = $em->getRepository(EstadoTren::class)->findBy([], ['fechaHora' => 'DESC']);
-
-        return $this->render('trenes/historial.html.twig', [
-            'records' => $records,
-        ]);
-    }
-
-    #[Route('/trenes/eliminar/{id}', name: 'app_trenes_eliminar', methods: ['POST'])]
-    public function eliminar(int $id, EntityManagerInterface $em): Response
-    {
-        $estado = $em->getRepository(EstadoTren::class)->find($id);
-        if ($estado) {
-            $em->remove($estado);
-            $em->flush();
-            $this->addFlash('success', 'Registro del historial eliminado.');
-        }
-
-        return $this->redirectToRoute('app_trenes_historial');
-    }
 }
