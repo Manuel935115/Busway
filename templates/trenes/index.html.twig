@@ -232,6 +232,20 @@
     @media (max-width:480px) {
         .tr-details-grid { grid-template-columns: 1fr; }
     }
+
+    /* ── TABLA ESTILOS ── */
+    .srv-table { width:100%; border-collapse:collapse; text-align:left; table-layout:fixed; }
+    .srv-table th {
+        padding:11px 20px;
+        font-size:0.62rem; font-weight:700; color:var(--text-muted);
+        text-transform:uppercase; letter-spacing:1.2px;
+        border-bottom:1px solid var(--border);
+        background:transparent;
+        padding:10px 16px;
+    }
+    .srv-table tbody tr { cursor:pointer; transition:background 0.12s; border-top:1px solid var(--border); }
+    .srv-table tbody tr:hover { background: rgba(67,97,238,0.045); }
+    .srv-table tbody tr.active-row { background: rgba(67,97,238,0.09); border-left: 3px solid var(--accent); }
 </style>
 {% endblock %}
 
@@ -255,8 +269,82 @@
         </div>
     {% endif %}
 
-    {# ── TRAIN CARD ── #}
-    {% if train %}
+    {# ── TABLA TRENES ── #}
+    {% if all_trains|length > 0 %}
+    <div class="card" style="overflow:hidden;">
+        <table class="srv-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="width:100px;">Código</th>
+                    <th style="width:150px;">Tipo</th>
+                    <th style="width:auto;">Origen → Destino</th>
+                    <th style="width:100px; text-align:center;">Retraso</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in all_trains %}
+                <tr class="srv-data-row" onclick="abrirTren({{ {cod_comercial: t.cod_comercial, product_name: t.product_name, origin_name: t.origin_name, destination_name: t.destination_name, ult_retraso: t.ult_retraso, des_corridor: t.des_corridor, next_station_name: t.next_station_name, previous_station_name: t.previous_station_name}|json_encode|e('html_attr') }}, 'row-tren-{{ loop.index }}')" id="row-tren-{{ loop.index }}" style="cursor:pointer; transition:background 0.12s;">
+                    <td style="padding:12px 16px;">
+                        <span style="font-family:monospace; font-size:0.72rem; font-weight:700; color:var(--text-primary);">{{ t.cod_comercial }}</span>
+                    </td>
+                    <td style="padding:12px 16px; color:var(--text-muted); font-size:0.85rem;">{{ t.product_name|default('—') }}</td>
+                    <td style="padding:12px 16px; color:var(--text-primary); font-size:0.85rem;">{{ t.origin_name|split(' ')|first|default('—') }} → {{ t.destination_name|split(' ')|first|default('—') }}</td>
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; {% if t.ult_retraso == 0 %}background:#10b981; color:#fff;{% elseif t.ult_retraso > 30 %}background:#dc2626; color:#fff;{% else %}background:#f59e0b; color:#fff;{% endif %}">
+                            {% if t.ult_retraso == 0 %}A tiempo{% else %}+{{ t.ult_retraso }}m{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elseif not searched %}
+    <div class="train-card">
+        <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
+            <p>Introduce un código de tren para rastrearlo en tiempo real. Datos de Renfe vía <strong>Retrasómetro</strong>.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── PANEL LATERAL ── #}
+    <div id="detail-overlay" style="display:none; position:fixed; inset:0; background:transparent; z-index:900; pointer-events:none;"></div>
+    <div id="detail-panel" style="position:fixed; top:0; right:-360px; width:360px; max-width:96vw; height:100vh; background:var(--card-bg); border-left:1px solid var(--border); z-index:901; box-shadow:-6px 0 48px rgba(0,0,0,0.18); transition:right 0.32s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden;">
+        <div style="padding:20px 22px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+            <div style="font-size:1rem; font-weight:700; color:var(--text-primary);" id="tr-code">—</div>
+            <button onclick="cerrarPanelTren()" style="background:var(--border); border:none; border-radius:10px; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0;">✕</button>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px;">
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Tipo</div>
+                <div id="tr-type" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Origen</div>
+                <div id="tr-origin" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Destino</div>
+                <div id="tr-dest" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Retraso</div>
+                <div id="tr-delay" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Próxima Parada</div>
+                <div id="tr-next" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
+                <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Corredor</div>
+                <div id="tr-corridor" style="font-size:0.95rem; color:var(--text-primary);">—</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── TRAIN CARD (LEGACY) ── #}
+    {% if train and false %}
         {% set delay = train.ult_retraso|default(0) %}
 
         {# Alerta de retraso #}
@@ -435,12 +523,40 @@
 </div>
 
 <script>
+let activeRowTren = null;
+
+function abrirTren(data, rowId) {
+    if (activeRowTren) document.getElementById(activeRowTren)?.classList.remove('active-row');
+    activeRowTren = rowId;
+    document.getElementById(rowId)?.classList.add('active-row');
+
+    document.getElementById('tr-code').textContent = data.cod_comercial;
+    document.getElementById('tr-type').textContent = data.product_name || '—';
+    document.getElementById('tr-origin').textContent = data.origin_name || '—';
+    document.getElementById('tr-dest').textContent = data.destination_name || '—';
+    const delayText = data.ult_retraso == 0 ? 'Sin retraso' : '+' + data.ult_retraso + ' minutos';
+    document.getElementById('tr-delay').textContent = delayText;
+    document.getElementById('tr-next').textContent = data.next_station_name || '—';
+    document.getElementById('tr-corridor').textContent = data.des_corridor || '—';
+
+    document.getElementById('detail-overlay').style.display = 'block';
+    document.getElementById('detail-panel').style.right = '0';
+}
+
+function cerrarPanelTren() {
+    document.getElementById('detail-overlay').style.display = 'none';
+    document.getElementById('detail-panel').style.right = '-360px';
+    if (activeRowTren) {
+        document.getElementById(activeRowTren)?.classList.remove('active-row');
+        activeRowTren = null;
+    }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanelTren(); });
 document.addEventListener('DOMContentLoaded', () => {
-    // Horas en zona horaria local del navegador
     document.querySelectorAll('.tz-time').forEach(el => {
         const raw = el.dataset.time;
         if (!raw) return;
-        // Si es timestamp Unix (ms) o ISO
         const d = isNaN(raw) ? new Date(raw) : new Date(parseInt(raw));
         if (!isNaN(d.getTime())) {
             el.innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

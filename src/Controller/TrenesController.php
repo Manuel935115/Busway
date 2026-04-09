@@ -99,6 +99,10 @@ class TrenesController extends AbstractController
                         $train = $data['items'][0];
                     }
                     $allTrains = $data['items'];
+                    // Enviar todos los trenes encontrados
+                    if (!in_array($train, $allTrains)) {
+                        array_unshift($allTrains, $train);
+                    }
 
                     // --- GUARDADO EN BASE DE DATOS (Sin duplicados) ---
                     try {
