@@ -213,7 +213,9 @@ class AeroapiController extends AbstractController
             ->getQuery()->getOneOrNullResult();
 
         if ($cached && !empty($cached->getRawData())) {
-            return new JsonResponse(['flight' => $cached->getRawData(), 'cached' => true]);
+            $response = new JsonResponse(['flight' => $cached->getRawData(), 'cached' => true]);
+            $response->setCache(['public' => true, 'max_age' => 300]);
+            return $response;
         }
 
         $options = ['http' => ['method' => 'GET', 'header' => ["x-apikey: $apiKey", "Accept: application/json"], 'ignore_errors' => true]];
@@ -249,7 +251,9 @@ class AeroapiController extends AbstractController
             $em->persist($ev); $em->flush();
         } catch (\Throwable) {}
 
-        return new JsonResponse(['flight' => $bestFlight, 'cached' => false]);
+        $response = new JsonResponse(['flight' => $bestFlight, 'cached' => false]);
+        $response->setCache(['public' => true, 'max_age' => 300]);
+        return $response;
     }
 
     #[Route('/historial', name: 'app_aeroapi_historial')]

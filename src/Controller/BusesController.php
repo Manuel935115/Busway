@@ -164,7 +164,9 @@ class BusesController extends AbstractController
             }
         }
 
-        return new JsonResponse($results);
+        $response = new JsonResponse($results);
+        $response->setCache(['public' => true, 'max_age' => 600]);
+        return $response;
     }
 
     #[Route('/api/buses/parada/{stopId}', name: 'api_buses_parada')]
@@ -178,10 +180,12 @@ class BusesController extends AbstractController
             return new JsonResponse(['error' => $data['description'] ?? 'Error al consultar la parada'], 400);
         }
 
-        return new JsonResponse([
+        $response = new JsonResponse([
             'arrivals' => $data['data'][0]['Arrive'] ?? [],
             'stopInfo' => $data['data'][0]['StopInfo'][0] ?? null,
         ]);
+        $response->setCache(['public' => true, 'max_age' => 180]);
+        return $response;
     }
 
     #[Route('/buses', name: 'app_buses')]
@@ -236,10 +240,12 @@ class BusesController extends AbstractController
             ->getQuery()
             ->getArrayResult();
 
-        return new JsonResponse(array_map(fn($r) => [
+        $response = new JsonResponse(array_map(fn($r) => [
             'id'   => $r['stopId'],
             'name' => $r['stopName'] ?? '',
             'addr' => $r['address'] ?? '',
         ], $rows));
+        $response->setCache(['public' => true, 'max_age' => 900]);
+        return $response;
     }
 }
