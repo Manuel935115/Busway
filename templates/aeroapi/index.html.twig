@@ -573,7 +573,16 @@ function limpiarCacheLocal() {
             count++;
         }
     }
-    alert('Caché limpiado: ' + count + ' elementos');
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = '✓ Hecho';
+    btn.style.background = '#16a34a';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+        btn.textContent = original;
+        btn.style.background = 'var(--border)';
+        btn.style.color = 'var(--text-muted)';
+    }, 1200);
 }
 
 function aplicarFiltros() {
