@@ -11,160 +11,184 @@ use App\Entity\Vuelo;
 use App\Entity\Estado;
 use App\Entity\EstadoVuelo;
 use App\Entity\Servicio;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class AeroapiController extends AbstractController
 {
+    public function __construct(
+        private LoggerInterface $logger,
+    ) {}
+
+    /**
+     * Llama a la AeroAPI de FlightAware con SSL verificado.
+     * Devuelve el body JSON como string, o null si falla.
+     */
+    private function fetchAeroApi(string $flightNumber, string $apiKey): ?string
+    {
+        $options = [
+            'http' => [
+                'method'        => 'GET',
+                'header'        => [
+                    'x-apikey: ' . trim($apiKey),
+                    'Accept: application/json; charset=UTF-8',
+                ],
+                'ignore_errors' => true,  // recibir body en HTTP 4xx/5xx
+                'timeout'       => 10,
+            ],
+            'ssl' => [
+                'verify_peer'      => true,
+                'verify_peer_name' => true,
+            ],
+        ];
+
+        $context  = stream_context_create($options);
+        $url      = 'https://aeroapi.flightaware.com/aeroapi/flights/' . urlencode($flightNumber);
+
+        // Suprimir warning de PHP pero capturar el error manualmente
+        set_error_handler(static function () { return true; });
+        $body = file_get_contents($url, false, $context);
+        restore_error_handler();
+
+        if ($body === false) {
+            $lastError = error_get_last();
+            $this->logger->error('AeroapiController: file_get_contents falló', [
+                'url'   => $url,
+                'error' => $lastError['message'] ?? 'desconocido',
+            ]);
+            return null;
+        }
+
+        return $body;
+    }
+
     #[Route('/aeroapi', name: 'app_aeroapi')]
     public function index(Request $request, EntityManagerInterface $em): Response
     {
-        $flightNumber = trim($request->query->get('flight', '') ?? '');
-        $flightData = null;
-        $error = null;
+        $flightNumber = strtoupper(trim($request->query->get('flight', '') ?? ''));
+        $flightData   = null;
+        $error        = null;
 
         if ($flightNumber !== '') {
-            $apiKey = $_ENV['AERO_API_KEY'] ?? ''; 
-            
-            if (empty($apiKey)) {
-                $error = "Falta configurar la clave AERO_API_KEY en el archivo .env de tu proyecto.";
+            // Validación de formato: 2-3 letras seguidas de 1-4 dígitos (IATA/ICAO)
+            if (!preg_match('/^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/', $flightNumber)) {
+                $error = "Formato de vuelo no válido. Ejemplos: IB3456, EZY1234, VY1234.";
             } else {
-                // --- SISTEMA DE CACHÉ (Ahorro de dinero) ---
-                // Buscamos si ya hemos consultado este vuelo en los últimos 5 minutos
-                $fiveMinutesAgo = new \DateTime('-5 minutes');
-                $cachedRecord = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('ev')
-                    ->join('ev.vuelo', 'v')
-                    ->where('v.numero = :fn')
-                    ->andWhere('ev.fechaHora >= :fiveMins')
-                    ->setParameter('fn', $flightNumber)
-                    ->setParameter('fiveMins', $fiveMinutesAgo)
-                    ->orderBy('ev.fechaHora', 'DESC')
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getOneOrNullResult();
+                $apiKey = $_ENV['AERO_API_KEY'] ?? '';
 
-                if ($cachedRecord && !empty($cachedRecord->getRawData())) {
-                    // ¡Tenemos datos recientes! Usamos la caché para NO gastar dinero en la API
-                    $bestFlight = $cachedRecord->getRawData();
-                    $flightData = ['flights' => [$bestFlight]];
-                    $mapBase64 = null;
+                if (empty($apiKey)) {
+                    $error = "Falta configurar la clave AERO_API_KEY en el archivo .env.local de tu proyecto.";
                 } else {
-                    // No hay caché o es antigua: Hacemos la llamada real a la API
-                    $options = [
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => [
-                                "x-apikey: " . trim($apiKey),
-                                "Accept: application/json; charset=UTF-8"
-                            ],
-                            'ignore_errors' => true
-                        ]
-                    ];
-                    
-                    $context = stream_context_create($options);
-                    $url = "https://aeroapi.flightaware.com/aeroapi/flights/" . urlencode($flightNumber);
-                    $jsonResponse = @file_get_contents($url, false, $context);
-                    
-                    if ($jsonResponse === false) {
-                        $error = "Vuelo '$flightNumber' no encontrado o no se pudo contactar con la API de FlightAware.";
-                    } else {
-                        $flightData = json_decode($jsonResponse, true);
-                        
-                        if (isset($flightData['detail'])) {
-                            $error = "Error de FlightAware: " . $flightData['detail'];
-                            $flightData = null;
-                        } elseif (empty($flightData['flights'])) {
-                            $error = "El número de vuelo «{$flightNumber}» no existe o no tiene planes de vuelo activos registrados en este momento.";
-                            $flightData = null;
-                        } else {
-                            $bestFlight = null;
-                            $now = time();
-                            $minDiff = PHP_INT_MAX;
+                    // --- SISTEMA DE CACHÉ (Ahorro de dinero) ---
+                    $fiveMinutesAgo = new \DateTime('-5 minutes');
+                    $cachedRecord = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('ev')
+                        ->join('ev.vuelo', 'v')
+                        ->where('v.numero = :fn')
+                        ->andWhere('ev.fechaHora >= :fiveMins')
+                        ->setParameter('fn', $flightNumber)
+                        ->setParameter('fiveMins', $fiveMinutesAgo)
+                        ->orderBy('ev.fechaHora', 'DESC')
+                        ->setMaxResults(1)
+                        ->getQuery()
+                        ->getOneOrNullResult();
 
-                            foreach ($flightData['flights'] as $flight) {
-                                if (stripos($flight['status'] ?? '', 'En Route') !== false) {
-                                    $bestFlight = $flight;
-                                    break;
-                                }
-                                $scheduledOut = isset($flight['scheduled_out']) ? strtotime($flight['scheduled_out']) : 0;
-                                if ($scheduledOut > 0) {
-                                    $diff = abs($now - $scheduledOut);
-                                    if ($diff < $minDiff) {
-                                        $minDiff = $diff;
+                    if ($cachedRecord && !empty($cachedRecord->getRawData())) {
+                        $bestFlight = $cachedRecord->getRawData();
+                        $flightData = ['flights' => [$bestFlight]];
+                    } else {
+                        $jsonResponse = $this->fetchAeroApi($flightNumber, $apiKey);
+
+                        if ($jsonResponse === null) {
+                            $error = "No se pudo contactar con la API de FlightAware.";
+                        } else {
+                            $flightData = json_decode($jsonResponse, true);
+
+                            if (isset($flightData['detail'])) {
+                                $error      = "Error de FlightAware: " . $flightData['detail'];
+                                $flightData = null;
+                            } elseif (empty($flightData['flights'])) {
+                                $error      = "El número de vuelo «{$flightNumber}» no existe o no tiene planes de vuelo activos.";
+                                $flightData = null;
+                            } else {
+                                $bestFlight = null;
+                                $now        = time();
+                                $minDiff    = PHP_INT_MAX;
+
+                                foreach ($flightData['flights'] as $flight) {
+                                    if (stripos($flight['status'] ?? '', 'En Route') !== false) {
                                         $bestFlight = $flight;
+                                        break;
+                                    }
+                                    $scheduledOut = isset($flight['scheduled_out']) ? strtotime($flight['scheduled_out']) : 0;
+                                    if ($scheduledOut > 0) {
+                                        $diff = abs($now - $scheduledOut);
+                                        if ($diff < $minDiff) {
+                                            $minDiff    = $diff;
+                                            $bestFlight = $flight;
+                                        }
                                     }
                                 }
-                            }
-                            
-                            if (!$bestFlight) {
-                                $bestFlight = $flightData['flights'][0] ?? null;
-                            }
-                            
-                            $flightData['flights'] = [$bestFlight];
 
-                            // Guardar en BD para futuras consultas y mantener un historial detallado (caché y datos)
-                            try {
-                                $statusStr = mb_substr($bestFlight['status'] ?? 'Desconocido', 0, 100);
-                                
-                                // 1. ESTADO
-                                $estado = $em->getRepository(Estado::class)->findOneBy(['nombre' => $statusStr]);
-                                if (!$estado) {
-                                    $estado = new Estado();
-                                    $estado->setNombre($statusStr);
-                                    $em->persist($estado);
+                                if (!$bestFlight) {
+                                    $bestFlight = $flightData['flights'][0] ?? null;
                                 }
-                                
-                                // 2. VUELO (Actualizar si existe)
-                                $vuelo = $em->getRepository(Vuelo::class)->findOneBy(['numero' => $flightNumber]);
-                                if (!$vuelo) {
-                                    $vuelo = new Vuelo();
-                                    $vuelo->setNumero($flightNumber);
-                                }
-                                
-                                if (!empty($bestFlight['scheduled_out'])) {
-                                    $vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));
-                                }
-                                if (!empty($bestFlight['scheduled_in'])) {
-                                    $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
-                                }
-                                
-                                $actualOut = $bestFlight['actual_out'] ?? $bestFlight['estimated_out'] ?? $bestFlight['scheduled_out'] ?? null;
-                                if ($actualOut) {
-                                    $vuelo->setHoraSalidaReal(new \DateTime($actualOut));
-                                }
-                                
-                                $actualIn = $bestFlight['actual_in'] ?? $bestFlight['estimated_in'] ?? $bestFlight['scheduled_in'] ?? null;
-                                if ($actualIn) {
-                                    $vuelo->setHoraLlegadaReal(new \DateTime($actualIn));
-                                }
-                                $vuelo->setEstadoActual($estado);
-                                $em->persist($vuelo);
-                                
-                                // 3. ESTADO_VUELO (Un solo registro por vuelo, se actualiza)
-                                $estadoVuelo = $em->getRepository(EstadoVuelo::class)->findOneBy(['vuelo' => $vuelo]);
-                                if (!$estadoVuelo) {
-                                    $estadoVuelo = new EstadoVuelo();
-                                    $estadoVuelo->setVuelo($vuelo);
-                                }
-                                $estadoVuelo->setEstado($estado);
-                                $estadoVuelo->setFechaHora(new \DateTime());
-                                
-                                $actualOut = $bestFlight['actual_out'] ?? $bestFlight['estimated_out'] ?? $bestFlight['scheduled_out'] ?? null;
-                                if ($actualOut) {
-                                    $estadoVuelo->setHoraSalida(new \DateTime($actualOut));
-                                }
-                                
-                                $actualIn = $bestFlight['actual_in'] ?? $bestFlight['estimated_in'] ?? $bestFlight['scheduled_in'] ?? null;
-                                if ($actualIn) {
-                                    $estadoVuelo->setHoraLlegada(new \DateTime($actualIn));
-                                }
-                                
-                                $estadoVuelo->setRawData($bestFlight);
-                                $em->persist($estadoVuelo);
-                                $em->persist($vuelo); // Re-persist para asegurar cambios
 
-                                $em->flush();
-                            } catch (\Exception $e) { 
-                                $error = "Error al guardar en Base de Datos: " . $e->getMessage();
+                                $flightData['flights'] = [$bestFlight];
+
+                                try {
+                                    $statusStr = mb_substr($bestFlight['status'] ?? 'Desconocido', 0, 100);
+
+                                    $estado = $em->getRepository(Estado::class)->findOneBy(['nombre' => $statusStr]);
+                                    if (!$estado) {
+                                        $estado = new Estado();
+                                        $estado->setNombre($statusStr);
+                                        $em->persist($estado);
+                                    }
+
+                                    $vuelo = $em->getRepository(Vuelo::class)->findOneBy(['numero' => $flightNumber]);
+                                    if (!$vuelo) {
+                                        $vuelo = new Vuelo();
+                                        $vuelo->setNumero($flightNumber);
+                                    }
+
+                                    if (!empty($bestFlight['scheduled_out'])) {
+                                        $vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));
+                                    }
+                                    if (!empty($bestFlight['scheduled_in'])) {
+                                        $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
+                                    }
+
+                                    $actualOut = $bestFlight['actual_out'] ?? $bestFlight['estimated_out'] ?? $bestFlight['scheduled_out'] ?? null;
+                                    if ($actualOut) $vuelo->setHoraSalidaReal(new \DateTime($actualOut));
+
+                                    $actualIn = $bestFlight['actual_in'] ?? $bestFlight['estimated_in'] ?? $bestFlight['scheduled_in'] ?? null;
+                                    if ($actualIn) $vuelo->setHoraLlegadaReal(new \DateTime($actualIn));
+
+                                    $vuelo->setEstadoActual($estado);
+                                    $em->persist($vuelo);
+
+                                    $estadoVuelo = $em->getRepository(EstadoVuelo::class)->findOneBy(['vuelo' => $vuelo]);
+                                    if (!$estadoVuelo) {
+                                        $estadoVuelo = new EstadoVuelo();
+                                        $estadoVuelo->setVuelo($vuelo);
+                                    }
+                                    $estadoVuelo->setEstado($estado);
+                                    $estadoVuelo->setFechaHora(new \DateTime());
+
+                                    if ($actualOut) $estadoVuelo->setHoraSalida(new \DateTime($actualOut));
+                                    if ($actualIn)  $estadoVuelo->setHoraLlegada(new \DateTime($actualIn));
+
+                                    $estadoVuelo->setRawData($bestFlight);
+                                    $em->persist($estadoVuelo);
+                                    $em->persist($vuelo);
+                                    $em->flush();
+                                } catch (\Exception $e) {
+                                    $this->logger->error('AeroapiController::index: error al guardar en BD', [
+                                        'flight'    => $flightNumber,
+                                        'exception' => $e->getMessage(),
+                                    ]);
+                                    $error = "Error al guardar en Base de Datos: " . $e->getMessage();
+                                }
                             }
                         }
                     }
@@ -185,17 +209,24 @@ class AeroapiController extends AbstractController
             ->getResult();
 
         return $this->render('aeroapi/index.html.twig', [
-            'controller_name' => 'AeroapiController',
-            'flight_info' => $flightData,
-            'searched_flight' => $flightNumber,
-            'error' => $error,
-            'servicios' => $servicios,
+            'controller_name'  => 'AeroapiController',
+            'flight_info'      => $flightData,
+            'searched_flight'  => $flightNumber,
+            'error'            => $error,
+            'servicios'        => $servicios,
         ]);
     }
 
     #[Route('/api/vuelo/{flight}', name: 'api_vuelo_info', requirements: ['flight' => '.+'])]
     public function apiVuelo(string $flight, EntityManagerInterface $em): JsonResponse
     {
+        $flight = strtoupper(trim($flight));
+
+        // Validación de formato
+        if (!preg_match('/^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/', $flight)) {
+            return new JsonResponse(['error' => 'Número de vuelo no válido'], 400);
+        }
+
         $apiKey = $_ENV['AERO_API_KEY'] ?? '';
         if (empty($apiKey)) {
             return new JsonResponse(['error' => 'Sin clave API'], 500);
@@ -218,8 +249,7 @@ class AeroapiController extends AbstractController
             return $response;
         }
 
-        $options = ['http' => ['method' => 'GET', 'header' => ["x-apikey: $apiKey", "Accept: application/json"], 'ignore_errors' => true]];
-        $json = @file_get_contents("https://aeroapi.flightaware.com/aeroapi/flights/" . urlencode($flight), false, stream_context_create($options));
+        $json = $this->fetchAeroApi($flight, $apiKey);
 
         if (!$json) return new JsonResponse(['error' => 'No se pudo contactar la API'], 500);
 
@@ -228,7 +258,8 @@ class AeroapiController extends AbstractController
         if (empty($data['flights'])) return new JsonResponse(['error' => 'Vuelo no encontrado'], 404);
 
         $bestFlight = null;
-        $now = time(); $minDiff = PHP_INT_MAX;
+        $now        = time();
+        $minDiff    = PHP_INT_MAX;
         foreach ($data['flights'] as $f) {
             if (stripos($f['status'] ?? '', 'En Route') !== false) { $bestFlight = $f; break; }
             $t = isset($f['scheduled_out']) ? strtotime($f['scheduled_out']) : 0;
@@ -238,18 +269,23 @@ class AeroapiController extends AbstractController
 
         try {
             $statusStr = mb_substr($bestFlight['status'] ?? 'Desconocido', 0, 100);
-            $estado = $em->getRepository(Estado::class)->findOneBy(['nombre' => $statusStr]);
+            $estado    = $em->getRepository(Estado::class)->findOneBy(['nombre' => $statusStr]);
             if (!$estado) { $estado = new Estado(); $estado->setNombre($statusStr); $em->persist($estado); }
             $vuelo = $em->getRepository(Vuelo::class)->findOneBy(['numero' => $flight]);
             if (!$vuelo) { $vuelo = new Vuelo(); $vuelo->setNumero($flight); }
             if (!empty($bestFlight['scheduled_out'])) $vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));
-            if (!empty($bestFlight['scheduled_in'])) $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
+            if (!empty($bestFlight['scheduled_in']))  $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
             $vuelo->setEstadoActual($estado); $em->persist($vuelo);
             $ev = $em->getRepository(EstadoVuelo::class)->findOneBy(['vuelo' => $vuelo]);
             if (!$ev) { $ev = new EstadoVuelo(); $ev->setVuelo($vuelo); }
             $ev->setEstado($estado); $ev->setFechaHora(new \DateTime()); $ev->setRawData($bestFlight);
             $em->persist($ev); $em->flush();
-        } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            $this->logger->error('AeroapiController::apiVuelo: error al guardar en BD', [
+                'flight'    => $flight,
+                'exception' => $e->getMessage(),
+            ]);
+        }
 
         $response = new JsonResponse(['flight' => $bestFlight, 'cached' => false]);
         $response->setCache(['public' => true, 'max_age' => 300]);
@@ -259,13 +295,13 @@ class AeroapiController extends AbstractController
     #[Route('/historial', name: 'app_aeroapi_historial')]
     public function historial(EntityManagerInterface $em): Response
     {
-        // Obtener todo el historial ordenado por los más recientes
         $records = $em->getRepository(EstadoVuelo::class)->findBy([], ['fechaHora' => 'DESC']);
 
         return $this->render('aeroapi/historial.html.twig', [
             'records' => $records,
         ]);
     }
+
     #[Route('/historial/eliminar/{id}', name: 'app_aeroapi_eliminar', methods: ['POST'])]
     public function eliminar(int $id, EntityManagerInterface $em): Response
     {
@@ -273,10 +309,9 @@ class AeroapiController extends AbstractController
         if ($estadoVuelo) {
             $vuelo = $estadoVuelo->getVuelo();
             $em->remove($estadoVuelo);
-            
-            // Verificar si otros historiales usan este vuelo
+
             $otros = $em->getRepository(EstadoVuelo::class)->count(['vuelo' => $vuelo]);
-            if ($otros === 1 && $vuelo) { // 1 es el que acabamos de marcar para borrar
+            if ($otros === 1 && $vuelo) {
                 $em->remove($vuelo);
             }
             $em->flush();

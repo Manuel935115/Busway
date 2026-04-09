@@ -3,69 +3,62 @@
 namespace App\Controller;
 
 use App\Entity\BusquedaParada;
+use App\Service\HttpService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class BusesController extends AbstractController
 {
-    private string $tokenFile;
-    private string $stopsFile;
-
-    public function __construct(private EntityManagerInterface $em)
-    {
-        $this->tokenFile = sys_get_temp_dir() . '/emt_token.json';
-        $this->stopsFile = sys_get_temp_dir() . '/emt_stops.json';
-    }
+    public function __construct(
+        private EntityManagerInterface $em,
+        private HttpService $http,
+        private LoggerInterface $logger,
+        private CacheInterface $cache,
+    ) {}
 
     // ── Token management ──────────────────────────────────────────────────────
 
     private function getToken(): ?string
     {
-        if (file_exists($this->tokenFile)) {
-            $data = json_decode(file_get_contents($this->tokenFile), true);
-            if ($data && isset($data['token'], $data['expires']) && time() < $data['expires']) {
-                return $data['token'];
+        return $this->cache->get('emt_token', function (ItemInterface $item): ?string {
+            $item->expiresAfter(3300); // 55 minutos
+
+            $email    = $_ENV['EMT_EMAIL']    ?? '';
+            $password = $_ENV['EMT_PASSWORD'] ?? '';
+
+            if (!$email || !$password) {
+                $item->expiresAfter(60); // reintenta rápido si faltan credenciales
+                return null;
             }
-        }
 
-        $email    = $_ENV['EMT_EMAIL']    ?? '';
-        $password = $_ENV['EMT_PASSWORD'] ?? '';
+            $response = $this->http->post(
+                'https://openapi.emtmadrid.es/v2/mobilitylabs/user/login/',
+                null,
+                ['email: ' . $email, 'password: ' . $password],
+                10
+            );
 
-        if (!$email || !$password) {
-            return null;
-        }
+            if (!$response) {
+                $item->expiresAfter(60);
+                return null;
+            }
 
-        $ch = curl_init('https://openapi.emtmadrid.es/v2/mobilitylabs/user/login/');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_HTTPHEADER     => [
-                'email: ' . $email,
-                'password: ' . $password,
-                'Content-Type: application/json',
-            ],
-        ]);
-        $response = curl_exec($ch);
-        curl_close($ch);
+            $json  = json_decode($response, true);
+            $token = $json['data'][0]['accessToken'] ?? null;
 
-        if (!$response) return null;
+            if (!$token) {
+                $item->expiresAfter(60);
+            }
 
-        $json = json_decode($response, true);
-        $token = $json['data'][0]['accessToken'] ?? null;
-
-        if ($token) {
-            file_put_contents($this->tokenFile, json_encode([
-                'token'   => $token,
-                'expires' => time() + 3300,
-            ]));
-        }
-
-        return $token;
+            return $token;
+        });
     }
 
     // ── Arrivals call ─────────────────────────────────────────────────────────
@@ -74,28 +67,14 @@ class BusesController extends AbstractController
     {
         $url  = "https://openapi.emtmadrid.es/v2/transport/busemtmad/stops/{$stopId}/arrives/";
         $body = json_encode([
-            'cultureInfo'                                  => 'ES',
-            'Text_StopRequired_YN'                         => 'Y',
-            'Text_EstimationsRequired_YN'                  => 'Y',
-            'Text_IncidencesRequired_YN'                   => 'N',
-            'DateTime_Referenced_Incidencies_YYYYMMDD'     => date('Ymd'),
+            'cultureInfo'                              => 'ES',
+            'Text_StopRequired_YN'                     => 'Y',
+            'Text_EstimationsRequired_YN'              => 'Y',
+            'Text_IncidencesRequired_YN'               => 'N',
+            'DateTime_Referenced_Incidencies_YYYYMMDD' => date('Ymd'),
         ]);
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_HTTPHEADER     => [
-                'accessToken: ' . $token,
-                'Content-Type: application/json',
-            ],
-        ]);
-        $response = curl_exec($ch);
-        curl_close($ch);
+        $response = $this->http->post($url, $body, ['accessToken: ' . $token], 10);
 
         if (!$response) return null;
         return json_decode($response, true);
@@ -105,41 +84,29 @@ class BusesController extends AbstractController
 
     private function getStops(string $token): array
     {
-        if (file_exists($this->stopsFile)) {
-            $data = json_decode(file_get_contents($this->stopsFile), true);
-            if ($data && isset($data['expires']) && time() < $data['expires']) {
-                return $data['stops'];
+        return $this->cache->get('emt_stops', function (ItemInterface $item) use ($token): array {
+            $item->expiresAfter(21600); // 6 horas
+
+            $response = $this->http->get(
+                'https://openapi.emtmadrid.es/v2/transport/busemtmad/stops/arroundxy/-3.70325/40.41650/5000/',
+                ['accessToken: ' . $token],
+                15
+            );
+
+            if (!$response) return [];
+
+            $json  = json_decode($response, true);
+            $stops = [];
+            foreach ($json['data'] ?? [] as $s) {
+                $stops[] = [
+                    'id'   => $s['stopId'],
+                    'name' => trim($s['stopName'] ?? ''),
+                    'addr' => trim($s['address']  ?? ''),
+                ];
             }
-        }
 
-        $ch = curl_init('https://openapi.emtmadrid.es/v2/transport/busemtmad/stops/arroundxy/-3.70325/40.41650/5000/');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_HTTPHEADER     => ['accessToken: ' . $token],
-        ]);
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        if (!$response) return [];
-
-        $json  = json_decode($response, true);
-        $stops = [];
-        foreach ($json['data'] ?? [] as $s) {
-            $stops[] = [
-                'id'   => $s['stopId'],
-                'name' => trim($s['stopName'] ?? ''),
-                'addr' => trim($s['address']  ?? ''),
-            ];
-        }
-
-        file_put_contents($this->stopsFile, json_encode([
-            'expires' => time() + 21600,
-            'stops'   => $stops,
-        ]));
-
-        return $stops;
+            return $stops;
+        });
     }
 
     // ── Routes ────────────────────────────────────────────────────────────────
@@ -172,6 +139,11 @@ class BusesController extends AbstractController
     #[Route('/api/buses/parada/{stopId}', name: 'api_buses_parada')]
     public function apiParada(string $stopId): JsonResponse
     {
+        // Validación: el stopId debe ser numérico
+        if (!ctype_digit($stopId)) {
+            return new JsonResponse(['error' => 'ID de parada no válido'], 400);
+        }
+
         $token = $this->getToken();
         if (!$token) return new JsonResponse(['error' => 'Sin token EMT'], 500);
 
@@ -197,25 +169,35 @@ class BusesController extends AbstractController
         $error    = null;
 
         if ($stopId !== '') {
-            $token = $this->getToken();
-            if (!$token) {
-                $error = 'No se pudo obtener el token de la API EMT. Comprueba las credenciales en .env';
+            // Validación: el stopId debe ser numérico
+            if (!ctype_digit($stopId)) {
+                $error = 'El ID de parada debe ser numérico.';
             } else {
-                $data = $this->getArrivals($stopId, $token);
-                if (!$data || ($data['code'] ?? '') !== '00') {
-                    $error = $data['description'] ?? 'Error al consultar la parada.';
+                $token = $this->getToken();
+                if (!$token) {
+                    $error = 'No se pudo obtener el token de la API EMT. Comprueba las credenciales en .env.local';
                 } else {
-                    $arrivals = $data['data'][0]['Arrive']    ?? [];
-                    $stopInfo = $data['data'][0]['StopInfo'][0] ?? null;
+                    $data = $this->getArrivals($stopId, $token);
+                    if (!$data || ($data['code'] ?? '') !== '00') {
+                        $error = $data['description'] ?? 'Error al consultar la parada.';
+                    } else {
+                        $arrivals = $data['data'][0]['Arrive']      ?? [];
+                        $stopInfo = $data['data'][0]['StopInfo'][0] ?? null;
 
-                    try {
-                        $busqueda = new BusquedaParada();
-                        $busqueda->setStopId($stopId);
-                        $busqueda->setStopName($stopInfo['stopName'] ?? $stopInfo['name'] ?? null);
-                        $busqueda->setAddress($stopInfo['postalAddress'] ?? $stopInfo['address'] ?? null);
-                        $this->em->persist($busqueda);
-                        $this->em->flush();
-                    } catch (\Throwable) {}
+                        try {
+                            $busqueda = new BusquedaParada();
+                            $busqueda->setStopId($stopId);
+                            $busqueda->setStopName($stopInfo['stopName'] ?? $stopInfo['name'] ?? null);
+                            $busqueda->setAddress($stopInfo['postalAddress'] ?? $stopInfo['address'] ?? null);
+                            $this->em->persist($busqueda);
+                            $this->em->flush();
+                        } catch (\Throwable $e) {
+                            $this->logger->error('BusesController: error al guardar BusquedaParada en BD', [
+                                'stopId'    => $stopId,
+                                'exception' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
             }
         }

@@ -18,6 +18,14 @@
                 --accent: #4361ee;
                 --border: rgba(0,0,0,0.06);
                 --input-bg: #ffffff;
+                --color-ave: #dc2626;
+                --color-alvia: #ea580c;
+                --color-avlo: #7c3aed;
+                --color-ouigo: #db2777;
+                --color-iryo: #2563eb;
+                --color-cercanias: #16a34a;
+                --color-md: #0891b2;
+                --color-tren-default: #64748b;
             }
 
             body.dark-mode {
@@ -307,13 +315,15 @@
                 border: 1px solid var(--border);
                 margin-bottom: 20px;
                 overflow: hidden;
-                animation: fadeInUp 0.5s ease;
+                animation: fadeInUp 0.22s ease;
                 transition: background 0.3s, border 0.3s;
             }
             body.dark-mode .card {
                 box-shadow: 0 4px 20px rgba(0,0,0,0.2);
             }
-            @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
+            .skeleton { background: linear-gradient(90deg, var(--border) 25%, rgba(150,150,150,0.08) 50%, var(--border) 75%); background-size: 600px 100%; animation: shimmer 1.4s infinite linear; border-radius: 6px; }
 
             /* ── RESPONSIVE ── */
             @media (max-width: 900px) {

@@ -278,9 +278,15 @@
         </div>
     </div>
 
-    <div class="dp-loading" id="dp-loading">
-        <div class="dp-spinner"></div>
-        <span style="font-size:0.85rem; font-weight:500;">Consultando vuelo…</span>
+    <div class="dp-loading" id="dp-loading" style="padding:20px; display:flex; flex-direction:column; gap:12px;">
+        <div class="skeleton" style="height:52px; border-radius:12px;"></div>
+        <div class="skeleton" style="height:90px; border-radius:14px;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="skeleton" style="height:64px; border-radius:12px;"></div>
+            <div class="skeleton" style="height:64px; border-radius:12px;"></div>
+        </div>
+        <div class="skeleton" style="height:64px; border-radius:12px;"></div>
+        <div class="skeleton" style="height:64px; border-radius:12px;"></div>
     </div>
 
     <div class="dp-body" id="dp-body">
@@ -385,6 +391,10 @@
         {% if servicios|length > 0 %}
         <div style="padding:16px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
             <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Vuelo</label>
+                <input type="text" id="filterVuelo" placeholder="Ej: IBE3177" oninput="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(67,97,238,0.03); color:var(--text-primary); font-size:0.85rem; width:130px; font-family:monospace; font-weight:600;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
                 <label style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Fecha</label>
                 <input type="date" id="filterFecha" onchange="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(67,97,238,0.03); color:var(--text-primary); font-size:0.85rem; width:150px;">
             </div>
@@ -412,11 +422,11 @@
                 {% set expandId = 'expand-' ~ loop.index %}
 
                 {% if esBus %}
-                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
+                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% elseif esTren %}
-                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
+                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% else %}
-                <tr id="row-{{ loop.index }}" class="srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')">
+                <tr id="row-{{ loop.index }}" class="srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% endif %}
                     <td style="text-align:center; padding:14px 8px;">
                         {% if esBus or esTren %}
@@ -473,7 +483,7 @@
                     </td>
                 </tr>
                 {% if esBus or esTren %}
-                <tr id="{{ expandId }}" style="display:none;" {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %}>
+                <tr id="{{ expandId }}" style="display:none;" {% if loop.index > 30 %}class="lazy-hidden"{% endif %} {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %}>
                     <td colspan="5" style="padding:0;">
                         <div class="svc-expand-body {{ esBus ? 'svc-bus' : 'svc-tren' }}">
                             <div class="svc-expand-grid">
@@ -515,6 +525,9 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div id="lazy-sentinel" style="padding:20px; text-align:center; height:50px; display:flex; align-items:center; justify-content:center; border-top:1px solid var(--border);">
+            <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Cargando más…</span>
+        </div>
         {% else %}
         <div style="padding:60px 24px; text-align:center; color:var(--text-muted);">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block; margin:0 auto 12px; opacity:0.5;"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z"/></svg>
@@ -566,50 +579,41 @@ function set(id, val) { const el = document.getElementById(id); if(el) el.textCo
 function show(id) { const el = document.getElementById(id); if(el) el.style.display = ''; }
 function hide(id) { const el = document.getElementById(id); if(el) el.style.display = 'none'; }
 function limpiarCacheLocal() {
-    let count = 0;
     for (let key in localStorage) {
         if (key.startsWith('bus_') || key.startsWith('buspar_')) {
             localStorage.removeItem(key);
-            count++;
         }
     }
-    const btn = event.target;
-    const original = btn.textContent;
-    btn.textContent = '✓ Hecho';
-    btn.style.background = '#16a34a';
-    btn.style.color = '#fff';
-    setTimeout(() => {
-        btn.textContent = original;
-        btn.style.background = 'var(--border)';
-        btn.style.color = 'var(--text-muted)';
-    }, 1200);
+    window.location.reload();
 }
 
 function aplicarFiltros() {
+    const vuelo = (document.getElementById('filterVuelo').value || '').trim().toUpperCase();
     const fecha = document.getElementById('filterFecha').value;
     const paxMin = parseInt(document.getElementById('filterPax').value) || 0;
     const rows = document.querySelectorAll('.srv-data-row');
     let visibles = 0;
 
     rows.forEach(row => {
+        const rowIdent = (row.dataset.ident || '') + ' ' + (row.dataset.vuelo || '');
         const rowFecha = row.dataset.fecha || '';
         const rowPax = parseInt(row.dataset.pax) || 0;
 
+        const matchVuelo = !vuelo || rowIdent.includes(vuelo);
         const matchFecha = !fecha || rowFecha === fecha;
         const matchPax = rowPax >= paxMin;
 
-        if (matchFecha && matchPax) {
+        if (matchVuelo && matchFecha && matchPax) {
             row.style.display = '';
             visibles++;
         } else {
             row.style.display = 'none';
         }
     });
-
-    console.log('Filtrado: ' + visibles + ' vuelos visibles');
 }
 
 function limpiarFiltros() {
+    document.getElementById('filterVuelo').value = '';
     document.getElementById('filterFecha').value = '';
     document.getElementById('filterPax').value = '';
     document.querySelectorAll('.srv-data-row').forEach(row => row.style.display = '');
@@ -877,5 +881,34 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
     }
 });
+
+// Lazy loading de vuelos
+const sentinel = document.getElementById('lazy-sentinel');
+const hasHiddenRows = () => document.querySelectorAll('.lazy-hidden').length > 0;
+
+if (sentinel && hasHiddenRows()) {
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const hiddenRows = document.querySelectorAll('.lazy-hidden');
+                let loaded = 0;
+
+                hiddenRows.forEach(row => {
+                    if (loaded >= 30) return;
+                    row.style.display = '';
+                    row.classList.remove('lazy-hidden');
+                    loaded++;
+                });
+
+                // Si no hay más filas, actualizar sentinel
+                if (!hasHiddenRows()) {
+                    sentinel.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted); opacity:0.6; font-weight:600;">Fin de los vuelos</span>';
+                    observer.disconnect();
+                }
+            }
+        });
+    }, { rootMargin: '300px' });
+    observer.observe(sentinel);
+}
 </script>
 {% endblock %}

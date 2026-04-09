@@ -214,11 +214,6 @@
     body.dark-mode .alert-error { border-color: rgba(220, 38, 38, 0.3); }
     .alert-error svg { color: #dc2626; width: 32px; height: 32px; margin-bottom: 4px; }
 
-    .empty-state {
-        text-align: center; padding: 60px 24px; color: var(--text-muted);
-    }
-    .empty-state svg { margin-bottom: 12px; color: var(--text-muted); opacity: 0.5; }
-    .empty-state p { font-size: 0.88rem; font-weight: 500; max-width: 380px; margin: 0 auto; line-height: 1.6; }
 
     @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeInUp  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -254,9 +249,9 @@
 
     {# ── SEARCH ── #}
     <div class="search-section">
-        <form method="get" action="{{ path('app_trenes') }}" class="search-bar">
+        <form method="get" action="{{ path('app_trenes') }}" class="search-bar" onsubmit="return manejarBusqueda(event)">
             <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
-            <input type="text" name="tren" placeholder="Código de tren… ej. 03940, 02201, AVE" value="{{ searched|default('') }}" required autocomplete="off">
+            <input type="text" id="trenSearchInput" name="tren" placeholder="Código de tren… ej. 03940, 02201, AVE" value="{{ searched|default('') }}" oninput="filtrarTrenesPorCodigo()" autocomplete="off">
             <button type="submit">Rastrear</button>
         </form>
     </div>
@@ -270,8 +265,15 @@
     {% endif %}
 
     {# ── TABLA TRENES ── #}
-    {% if all_trains|length > 0 %}
     <div class="card" style="overflow:hidden;">
+        {# Filtro de búsqueda #}
+        <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; background:var(--card-bg);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="flex-shrink:0;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="filtroTren" type="text" placeholder="Filtrar por código, tipo, origen, destino..." oninput="filtrarTabla()" style="flex:1; border:none; outline:none; background:transparent; color:var(--text-primary); font-size:0.9rem; font-family:inherit;">
+            <button onclick="limpiarFiltro()" style="background:var(--border); border:none; border-radius:8px; padding:6px 10px; color:var(--text-muted); cursor:pointer; font-size:0.8rem; font-weight:600; transition:all 0.15s;">✕ Limpiar</button>
+        </div>
+
+        {# Tabla de trenes guardados #}
         <table class="srv-table" style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr>
@@ -282,31 +284,31 @@
                 </tr>
             </thead>
             <tbody>
-                {% for t in all_trains %}
-                <tr class="srv-data-row" onclick="abrirTren({{ {cod_comercial: t.cod_comercial, product_name: t.product_name, origin_name: t.origin_name, destination_name: t.destination_name, ult_retraso: t.ult_retraso, des_corridor: t.des_corridor, next_station_name: t.next_station_name, previous_station_name: t.previous_station_name}|json_encode|e('html_attr') }}, 'row-tren-{{ loop.index }}')" id="row-tren-{{ loop.index }}" style="cursor:pointer; transition:background 0.12s;">
-                    <td style="padding:12px 16px;">
-                        <span style="font-family:monospace; font-size:0.72rem; font-weight:700; color:var(--text-primary);">{{ t.cod_comercial }}</span>
-                    </td>
-                    <td style="padding:12px 16px; color:var(--text-muted); font-size:0.85rem;">{{ t.product_name|default('—') }}</td>
-                    <td style="padding:12px 16px; color:var(--text-primary); font-size:0.85rem;">{{ t.origin_name|split(' ')|first|default('—') }} → {{ t.destination_name|split(' ')|first|default('—') }}</td>
-                    <td style="padding:12px 16px; text-align:center;">
-                        <span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; {% if t.ult_retraso == 0 %}background:#10b981; color:#fff;{% elseif t.ult_retraso > 30 %}background:#dc2626; color:#fff;{% else %}background:#f59e0b; color:#fff;{% endif %}">
-                            {% if t.ult_retraso == 0 %}A tiempo{% else %}+{{ t.ult_retraso }}m{% endif %}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
+                {% if trenes_guardados|length > 0 %}
+                    {% for t in trenes_guardados %}
+                    <tr class="srv-data-row" data-type="{{ t.product_name|default('') }}" onclick="abrirTren({{ {cod_comercial: t.cod_comercial, product_name: t.product_name, origin_name: t.origin_name, destination_name: t.destination_name, ult_retraso: t.ult_retraso, des_corridor: t.des_corridor, next_station_name: t.next_station_name, previous_station_name: t.previous_station_name}|json_encode|e('html_attr') }}, 'row-tren-{{ loop.index }}')" id="row-tren-{{ loop.index }}" style="cursor:pointer; transition:background 0.12s;">
+                        <td style="padding:12px 16px;">
+                            <span style="font-family:monospace; font-size:0.72rem; font-weight:700; color:var(--text-primary);">{{ t.cod_comercial }}</span>
+                        </td>
+                        <td style="padding:12px 16px; color:var(--text-muted); font-size:0.85rem;">{{ t.product_name|default('—') }}</td>
+                        <td style="padding:12px 16px; color:var(--text-primary); font-size:0.85rem;">{{ t.origin_name|split(' ')|first|default('—') }} → {{ t.destination_name|split(' ')|first|default('—') }}</td>
+                        <td style="padding:12px 16px; text-align:center;">
+                            <span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; {% if t.ult_retraso == 0 %}background:#10b981; color:#fff;{% elseif t.ult_retraso > 30 %}background:#dc2626; color:#fff;{% else %}background:#f59e0b; color:#fff;{% endif %}">
+                                {% if t.ult_retraso == 0 %}A tiempo{% else %}+{{ t.ult_retraso }}m{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr style="border-top:1px solid var(--border);">
+                        <td colspan="4" style="padding:40px 20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+                            No hay trenes guardados. Usa la barra de búsqueda para rastrear un tren.
+                        </td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
-    {% elseif not searched %}
-    <div class="train-card">
-        <div class="empty-state">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
-            <p>Introduce un código de tren para rastrearlo en tiempo real. Datos de Renfe vía <strong>Retrasómetro</strong>.</p>
-        </div>
-    </div>
-    {% endif %}
 
     {# ── PANEL LATERAL ── #}
     <div id="detail-overlay" style="display:none; position:fixed; inset:0; background:transparent; z-index:900; pointer-events:none;"></div>
@@ -511,13 +513,6 @@
         </div>
 
 
-    {% elseif not searched %}
-        <div class="train-card">
-            <div class="empty-state">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 19l-2 3"/><path d="M18 22l-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
-                <p>Introduce un código de tren para rastrearlo en tiempo real. Datos de Renfe vía <strong>Retrasómetro</strong>.</p>
-            </div>
-        </div>
     {% endif %}
 
 </div>
@@ -525,12 +520,81 @@
 <script>
 let activeRowTren = null;
 
+function getOperatorColor(productName) {
+    if (!productName) return 'var(--color-tren-default)';
+    const p = productName.toUpperCase();
+    if (p.includes('AVLO'))   return 'var(--color-avlo)';
+    if (p.includes('AVE'))    return 'var(--color-ave)';
+    if (p.includes('ALVIA'))  return 'var(--color-alvia)';
+    if (p.includes('OUIGO'))  return 'var(--color-ouigo)';
+    if (p.includes('IRYO'))   return 'var(--color-iryo)';
+    if (p.includes('CERCAN')) return 'var(--color-cercanias)';
+    if (p.includes('MD'))     return 'var(--color-md)';
+    return 'var(--color-tren-default)';
+}
+
+
+function filtrarTabla() {
+    const q = document.getElementById('filtroTren').value.trim().toLowerCase();
+    document.querySelectorAll('.srv-data-row').forEach(row => {
+        const texto = row.textContent.toLowerCase();
+        row.style.display = q === '' || texto.includes(q) ? '' : 'none';
+    });
+}
+
+function limpiarFiltro() {
+    document.getElementById('filtroTren').value = '';
+    filtrarTabla();
+}
+
+function filtrarTrenesPorCodigo() {
+    const input = document.getElementById('trenSearchInput');
+    const searchValue = input.value.trim().toUpperCase();
+    const rows = document.querySelectorAll('.srv-data-row');
+
+    rows.forEach(row => {
+        const codeCell = row.querySelector('td:first-child span');
+        const trainCode = codeCell ? codeCell.textContent.trim().toUpperCase() : '';
+
+        if (searchValue === '') {
+            row.style.display = '';
+        } else {
+            row.style.display = trainCode === searchValue ? '' : 'none';
+        }
+    });
+}
+
+function manejarBusqueda(event) {
+    const input = document.getElementById('trenSearchInput');
+    const searchValue = input.value.trim().toUpperCase();
+    const rows = document.querySelectorAll('.srv-data-row');
+    let hayCoincidencia = false;
+
+    rows.forEach(row => {
+        const codeCell = row.querySelector('td:first-child span');
+        const trainCode = codeCell ? codeCell.textContent.trim().toUpperCase() : '';
+        if (trainCode === searchValue) {
+            hayCoincidencia = true;
+        }
+    });
+
+    if (!hayCoincidencia && searchValue !== '') {
+        return true;
+    }
+
+    event.preventDefault();
+    filtrarTrenesPorCodigo();
+    return false;
+}
+
 function abrirTren(data, rowId) {
     if (activeRowTren) document.getElementById(activeRowTren)?.classList.remove('active-row');
     activeRowTren = rowId;
     document.getElementById(rowId)?.classList.add('active-row');
 
     document.getElementById('tr-code').textContent = data.cod_comercial;
+    const color = getOperatorColor(data.product_name);
+    document.getElementById('tr-code').style.color = color;
     document.getElementById('tr-type').textContent = data.product_name || '—';
     document.getElementById('tr-origin').textContent = data.origin_name || '—';
     document.getElementById('tr-dest').textContent = data.destination_name || '—';
@@ -561,6 +625,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isNaN(d.getTime())) {
             el.innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
+    });
+
+    // Aplicar colores de operadores a las filas
+    document.querySelectorAll('.srv-data-row[data-type]').forEach(row => {
+        const color = getOperatorColor(row.dataset.type);
+        row.style.borderLeft = '3px solid ' + color;
     });
 });
 </script>
