@@ -1,0 +1,435 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Buses EMT — Busway{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size:1.7rem; font-weight:800; color:var(--text-primary); letter-spacing:-0.04em; margin-bottom:4px; }
+    .page-header p { color:var(--text-muted); font-size:0.85rem; font-weight:500; }
+
+    /* Search */
+    .search-card {
+        background:var(--card-bg); border:1px solid var(--border);
+        border-radius:20px; padding:22px 24px; margin-bottom:24px;
+        box-shadow:0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+    }
+    .search-row { display:flex; gap:12px; align-items:center; }
+    .search-input {
+        flex:1; padding:12px 16px; border-radius:12px;
+        border:1.5px solid var(--border); background:var(--input-bg);
+        color:var(--text-primary); font-size:0.95rem; font-weight:600;
+        font-family:inherit; outline:none; transition:border 0.2s;
+    }
+    .search-input:focus { border-color:var(--accent); }
+    .search-btn {
+        padding:12px 22px; background:var(--accent); color:#fff;
+        border:none; border-radius:12px; font-weight:800; font-size:0.9rem;
+        cursor:pointer; font-family:inherit; transition:filter 0.15s, transform 0.15s;
+        display:flex; align-items:center; gap:8px;
+    }
+    .search-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+
+    /* Empty state */
+    .empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+    .empty-state svg { width:52px; height:52px; opacity:0.3; margin-bottom:14px; display:block; margin-left:auto; margin-right:auto; }
+    .empty-state h3 { font-size:1rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; }
+    .empty-state p { font-size:0.85rem; }
+
+    /* Autocomplete */
+    .autocomplete-wrap { position:relative; flex:1; }
+    .autocomplete-dropdown {
+        position:absolute; top:calc(100% + 6px); left:0; right:0;
+        background:var(--card-bg); border:1px solid var(--border);
+        border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,0.12);
+        z-index:50; overflow:hidden; display:none;
+    }
+    .autocomplete-dropdown.open { display:block; }
+    .ac-item {
+        padding:10px 16px; cursor:pointer;
+        display:flex; align-items:center; gap:12px;
+        transition:background 0.12s; border-bottom:1px solid var(--border);
+    }
+    .ac-item:last-child { border-bottom:none; }
+    .ac-item:hover, .ac-item.selected { background:rgba(67,97,238,0.08); }
+    .ac-id {
+        font-size:0.8rem; font-weight:800; color:var(--accent);
+        background:rgba(67,97,238,0.1); padding:2px 8px; border-radius:6px;
+        flex-shrink:0; min-width:36px; text-align:center;
+    }
+    .ac-name { font-size:0.88rem; font-weight:600; color:var(--text-primary); }
+    .ac-addr { font-size:0.74rem; color:var(--text-muted); margin-top:1px; }
+
+    /* ── RIGHT PANEL ── */
+    #bus-overlay {
+        display:none; position:fixed; inset:0;
+        background:rgba(0,0,0,0.35); z-index:900;
+        backdrop-filter:blur(2px);
+    }
+    #bus-panel {
+        position:fixed; top:0; right:-480px; width:480px; max-width:96vw;
+        height:100vh; background:var(--card-bg);
+        border-left:1px solid var(--border);
+        z-index:901; box-shadow:-6px 0 48px rgba(0,0,0,0.18);
+        transition:right 0.32s cubic-bezier(0.4,0,0.2,1);
+        display:flex; flex-direction:column; overflow:hidden;
+    }
+    #bus-panel.open { right:0; }
+
+    .bp-header {
+        padding:18px 20px; border-bottom:1px solid var(--border);
+        display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+        background:linear-gradient(135deg, var(--accent) 0%, #3451d1 100%);
+        color:#fff;
+    }
+    .bp-stop-num { font-size:1.4rem; font-weight:900; letter-spacing:-0.5px; }
+    .bp-stop-name { font-size:0.8rem; opacity:0.85; font-weight:500; margin-top:2px; }
+    .bp-stop-addr { font-size:0.72rem; opacity:0.7; margin-top:1px; }
+    .bp-close {
+        background:rgba(255,255,255,0.2); border:none; border-radius:10px;
+        width:34px; height:34px; cursor:pointer; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; color:#fff;
+    }
+    .bp-close:hover { background:rgba(255,255,255,0.35); }
+
+    .bp-lines { display:flex; flex-wrap:wrap; gap:6px; padding:12px 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .bp-line-chip {
+        background:rgba(67,97,238,0.1); color:var(--accent);
+        font-size:0.72rem; font-weight:800; padding:3px 9px; border-radius:6px;
+    }
+
+    .bp-loading {
+        flex:1; display:flex; align-items:center; justify-content:center;
+        flex-direction:column; gap:14px; color:var(--text-muted);
+    }
+    .bp-spinner {
+        width:36px; height:36px; border:3px solid var(--border);
+        border-top-color:var(--accent); border-radius:50%;
+        animation:spin 0.8s linear infinite;
+    }
+
+    .bp-body { flex:1; overflow-y:auto; padding:16px 20px; display:none; flex-direction:column; gap:10px; }
+
+    .bp-refresh-bar {
+        display:flex; align-items:center; justify-content:space-between;
+        margin-bottom:4px; flex-shrink:0;
+    }
+    .bp-count { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); }
+    .bp-refresh-btn {
+        background:none; border:1px solid var(--border); border-radius:8px;
+        padding:4px 10px; font-size:0.72rem; font-weight:700; color:var(--text-muted);
+        cursor:pointer; display:flex; align-items:center; gap:5px; font-family:inherit;
+        transition:all 0.15s;
+    }
+    .bp-refresh-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+    .bp-arrival {
+        background:var(--card-bg); border:1px solid var(--border);
+        border-radius:14px; padding:14px 16px;
+        display:flex; align-items:center; gap:14px;
+        animation:fadeInUp 0.3s ease both;
+    }
+    .bp-line-badge {
+        width:50px; height:50px; border-radius:12px;
+        background:var(--accent); color:#fff;
+        display:flex; align-items:center; justify-content:center;
+        font-weight:900; font-size:1rem; flex-shrink:0; letter-spacing:-0.5px;
+    }
+    .bp-arrival-info { flex:1; min-width:0; }
+    .bp-dest { font-size:0.9rem; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .bp-meta { font-size:0.74rem; color:var(--text-muted); margin-top:3px; font-weight:500; }
+    .bp-time { text-align:right; flex-shrink:0; }
+    .bp-mins { font-size:1.6rem; font-weight:900; letter-spacing:-1px; line-height:1; }
+    .bp-mins.now   { color:#16a34a; }
+    .bp-mins.soon  { color:#d97706; }
+    .bp-mins.later { color:var(--text-primary); }
+    .bp-mins.far   { color:var(--text-muted); font-size:1.1rem; }
+    .bp-mins-label { font-size:0.66rem; color:var(--text-muted); font-weight:600; margin-top:2px; }
+
+    .bp-error {
+        background:#fef2f2; border:1px solid #fecaca; border-radius:12px;
+        padding:16px 18px; color:#dc2626; font-size:0.85rem; font-weight:600;
+        margin:16px 20px;
+    }
+
+    @media (max-width:480px) {
+        .search-row { flex-direction:column; }
+        .search-btn { width:100%; justify-content:center; }
+        #bus-panel { width:100vw; max-width:100vw; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── OVERLAY + PANEL ── #}
+<div id="bus-overlay"></div>
+<div id="bus-panel">
+    <div class="bp-header">
+        <div>
+            <div class="bp-stop-num" id="bp-num">Parada —</div>
+            <div class="bp-stop-name" id="bp-name"></div>
+            <div class="bp-stop-addr" id="bp-addr"></div>
+        </div>
+        <button class="bp-close" id="btnCerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+    </div>
+
+    <div class="bp-lines" id="bp-lines" style="display:none;"></div>
+
+    <div class="bp-loading" id="bp-loading">
+        <div class="bp-spinner"></div>
+        <span style="font-size:0.85rem; font-weight:500;">Consultando parada…</span>
+    </div>
+
+    <div id="bp-error" class="bp-error" style="display:none;"></div>
+
+    <div class="bp-body" id="bp-body">
+        <div class="bp-refresh-bar">
+            <span class="bp-count" id="bp-count"></span>
+            <button class="bp-refresh-btn" id="btnRefresh">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                Actualizar
+            </button>
+        </div>
+        <div id="bp-arrivals"></div>
+    </div>
+</div>
+
+<div class="content-wrap">
+    <div class="page-header">
+        <h1>Buses EMT Madrid</h1>
+        <p>Busca una parada para ver los próximos autobuses en tiempo real.</p>
+    </div>
+
+    <div class="search-card">
+        <div class="search-row">
+            <div class="autocomplete-wrap">
+                <input
+                    type="text"
+                    id="paradaInput"
+                    class="search-input"
+                    placeholder="Número o nombre de parada (ej: 62, Castellana)"
+                    autocomplete="off"
+                    autofocus
+                >
+                <div class="autocomplete-dropdown" id="acDropdown"></div>
+            </div>
+            <button class="search-btn" id="btnConsultar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Consultar
+            </button>
+        </div>
+    </div>
+
+    <div class="card" style="overflow:hidden;">
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <path d="M3 9h18M3 15h18M9 9v6M15 9v6"/>
+            </svg>
+            <h3>Busca una parada</h3>
+            <p>Introduce el número o nombre de parada para ver los próximos autobuses.</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+let currentStop = null;
+let countdown = null;
+let secondsLeft = [];
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+(function() {
+    const input    = document.getElementById('paradaInput');
+    const dropdown = document.getElementById('acDropdown');
+    if (!input) return;
+    let selected = -1, debounce;
+
+    input.addEventListener('focus', () => {
+        if (input.value.trim().length < 2) loadRecientes();
+    });
+
+    input.addEventListener('input', () => {
+        clearTimeout(debounce);
+        const q = input.value.trim();
+        if (q.length < 2) { loadRecientes(); return; }
+        debounce = setTimeout(() => fetch('/api/buses/autocompletear?q=' + encodeURIComponent(q))
+            .then(r => r.json()).then(items => render(items, false)), 220);
+    });
+
+    function loadRecientes() {
+        fetch('/api/buses/recientes')
+            .then(r => r.json())
+            .then(items => { if (items.length) render(items, true); else close(); })
+            .catch(() => close());
+    }
+
+    function render(items, isRecent) {
+        selected = -1;
+        if (!items.length) { close(); return; }
+        const header = isRecent ? '<div style="padding:6px 16px 2px;font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Búsquedas recientes</div>' : '';
+        dropdown.innerHTML = header + items.map((s, i) =>
+            `<div class="ac-item" data-id="${s.id}" data-name="${s.name}" data-addr="${s.addr}" data-idx="${i}">
+                <span class="ac-id">${s.id}</span>
+                <div><div class="ac-name">${s.name}</div><div class="ac-addr">${s.addr}</div></div>
+            </div>`
+        ).join('');
+        dropdown.classList.add('open');
+        dropdown.querySelectorAll('.ac-item').forEach(el => {
+            el.addEventListener('mousedown', e => {
+                e.preventDefault();
+                input.value = el.dataset.id;
+                close();
+                cargarParada(el.dataset.id, el.dataset.name, el.dataset.addr);
+            });
+        });
+    }
+
+    function close() { dropdown.classList.remove('open'); dropdown.innerHTML = ''; selected = -1; }
+
+    input.addEventListener('keydown', e => {
+        const items = dropdown.querySelectorAll('.ac-item');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); selected = Math.min(selected+1, items.length-1); items.forEach((el,i) => el.classList.toggle('selected', i===selected)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selected = Math.max(selected-1, -1); items.forEach((el,i) => el.classList.toggle('selected', i===selected)); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (selected >= 0) { const el = items[selected]; input.value = el.dataset.id; close(); cargarParada(el.dataset.id, el.dataset.name, el.dataset.addr); } else { buscarManual(); } }
+        else if (e.key === 'Escape') close();
+    });
+
+    document.addEventListener('click', e => { if (!input.contains(e.target) && !dropdown.contains(e.target)) close(); });
+})();
+
+function buscarManual() {
+    const v = document.getElementById('paradaInput').value.trim();
+    if (v) cargarParada(v);
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+function cargarParada(stopId, stopName, stopAddr) {
+    currentStop = stopId;
+    clearInterval(countdown);
+
+    // Reset panel
+    document.getElementById('bp-num').textContent = 'Parada ' + stopId;
+    document.getElementById('bp-name').textContent = stopName || '';
+    document.getElementById('bp-addr').textContent = stopAddr || '';
+    document.getElementById('bp-lines').style.display = 'none';
+    document.getElementById('bp-loading').style.display = 'flex';
+    document.getElementById('bp-body').style.display = 'none';
+    document.getElementById('bp-error').style.display = 'none';
+
+    // Abrir
+    document.getElementById('bus-overlay').style.display = 'block';
+    document.getElementById('bus-panel').classList.add('open');
+
+    const apiUrl = '{{ path('api_buses_parada', {'stopId': 'PLACEHOLDER'}) }}'.replace('PLACEHOLDER', encodeURIComponent(stopId));
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('bp-loading').style.display = 'none';
+
+            if (data.error) {
+                const errEl = document.getElementById('bp-error');
+                errEl.textContent = '⚠ ' + data.error;
+                errEl.style.display = 'block';
+                return;
+            }
+
+            // Stop info
+            const info = data.stopInfo;
+            if (info) {
+                document.getElementById('bp-name').textContent = info.stopName || info.name || '';
+                document.getElementById('bp-addr').textContent = info.postalAddress || info.address || '';
+                if (info.lines && info.lines.length) {
+                    const linesEl = document.getElementById('bp-lines');
+                    linesEl.innerHTML = info.lines.slice(0,12).map(l => `<span class="bp-line-chip">${l.label || l}</span>`).join('');
+                    linesEl.style.display = 'flex';
+                }
+            }
+
+            renderArrivals(data.arrivals || []);
+        })
+        .catch(err => {
+            document.getElementById('bp-loading').style.display = 'none';
+            const errEl = document.getElementById('bp-error');
+            errEl.textContent = '⚠ Error de conexión: ' + err.message;
+            errEl.style.display = 'block';
+        });
+}
+
+function renderArrivals(arrivals) {
+    const body = document.getElementById('bp-body');
+    const container = document.getElementById('bp-arrivals');
+    const countEl = document.getElementById('bp-count');
+
+    body.style.display = 'flex';
+
+    if (!arrivals.length) {
+        countEl.textContent = 'Sin autobuses próximos';
+        container.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.88rem;">No hay estimaciones disponibles ahora mismo.</div>`;
+        return;
+    }
+
+    countEl.textContent = arrivals.length + ' próximos autobuses';
+
+    // Guardamos los segundos para el countdown
+    secondsLeft = arrivals.map(b => b.estimateArrive ?? 999999);
+
+    container.innerHTML = arrivals.map((bus, i) => {
+        return `<div class="bp-arrival" style="animation-delay:${i*0.04}s">
+            <div class="bp-line-badge">${bus.line}</div>
+            <div class="bp-arrival-info">
+                <div class="bp-dest">${bus.destination || '—'}</div>
+                <div class="bp-meta">Bus ${bus.bus || '—'}${bus.DistanceBus > 0 ? ' · ' + bus.DistanceBus + ' m' : ''}</div>
+            </div>
+            <div class="bp-time">
+                <div class="bp-mins" id="bp-min-${i}"></div>
+                <div class="bp-mins-label" id="bp-lbl-${i}"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    updateCountdown();
+    clearInterval(countdown);
+    countdown = setInterval(() => {
+        secondsLeft = secondsLeft.map(s => s > 0 ? s - 1 : 0);
+        updateCountdown();
+    }, 1000);
+}
+
+function updateCountdown() {
+    secondsLeft.forEach((secs, i) => {
+        const minEl = document.getElementById('bp-min-' + i);
+        const lblEl = document.getElementById('bp-lbl-' + i);
+        if (!minEl) return;
+        const mins = Math.floor(secs / 60);
+        if (secs >= 999990) { minEl.textContent = '+45'; minEl.className = 'bp-mins far'; lblEl.textContent = 'min'; }
+        else if (secs <= 60)  { minEl.textContent = 'YA';  minEl.className = 'bp-mins now';  lblEl.textContent = 'llegando'; }
+        else if (mins <= 5)   { minEl.textContent = mins;  minEl.className = 'bp-mins soon'; lblEl.textContent = 'min'; }
+        else                  { minEl.textContent = mins;  minEl.className = 'bp-mins later'; lblEl.textContent = 'min'; }
+    });
+}
+
+function cerrarPanel() {
+    clearInterval(countdown);
+    document.getElementById('bus-overlay').style.display = 'none';
+    document.getElementById('bus-panel').classList.remove('open');
+}
+
+document.getElementById('btnConsultar').addEventListener('click', buscarManual);
+document.getElementById('btnCerrar').addEventListener('click', cerrarPanel);
+document.getElementById('bus-overlay').addEventListener('click', cerrarPanel);
+document.getElementById('btnRefresh').addEventListener('click', () => { if (currentStop) cargarParada(currentStop); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanel(); });
+</script>
+{% endblock %}

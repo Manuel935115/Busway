@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -k -X GET \"https://openapi.emtmadrid.es/v2/mobilitylabs/user/login/\" -H \"email: manu.mateos.2005@gmail.com\" -H \"password: Manuelmartin44\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('code'\\), d.get\\('description',''\\)[:80], d['data'][0].get\\('accessToken',''\\)[:20] if d.get\\('data'\\) else ''\\)\")",
+      "Bash(curl -s -k -X GET \"https://openapi.emtmadrid.es/v1/transport/busemtmad/stops/list/\" -H \"accessToken: b3e562db-953c-4b41-a5bc-e131a5ec2eaa\")",
+      "Bash(curl -s -k \"https://openapi.emtmadrid.es/v2/transport/busemtmad/stops/arroundxy/-3.70325/40.41650/300/\" -H \"accessToken: b3e562db-953c-4b41-a5bc-e131a5ec2eaa\")",
+      "Bash(curl -s -k \"https://openapi.emtmadrid.es/v1/geo/busemtmad/stops/0/0/0/\" -H \"accessToken: b3e562db-953c-4b41-a5bc-e131a5ec2eaa\")",
+      "Bash(curl -s -k \"https://openapi.emtmadrid.es/v2/transport/busemtmad/stops/arroundxy/-3.70325/40.41650/5000/\" -H \"accessToken: b3e562db-953c-4b41-a5bc-e131a5ec2eaa\")"
+    ]
+  }
+}

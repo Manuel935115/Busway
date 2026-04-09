@@ -1,0 +1,121 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Historial de Paradas | Busway{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+    .header p  { margin: 4px 0 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+    .header-count {
+        color: var(--text-muted); font-size: 0.82rem; font-weight: 600;
+        background: var(--card-bg); padding: 6px 14px; border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid var(--border);
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th {
+        background: rgba(0,0,0,0.02); padding: 14px 20px; font-size: 0.68rem;
+        font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+        letter-spacing: 1px; border-bottom: 1px solid var(--border);
+    }
+    body.dark-mode th { background: rgba(255,255,255,0.03); }
+    td { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--text-primary); vertical-align: middle; }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover { background: rgba(0,0,0,0.02); }
+    body.dark-mode tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    .stop-id {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; border-radius: 10px;
+        background: var(--accent); color: #fff;
+        font-weight: 900; font-size: 0.78rem;
+    }
+    .stop-name { font-weight: 700; color: var(--text-primary); }
+    .stop-addr { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
+    .date { color: var(--text-muted); font-size: 0.82rem; font-weight: 500; }
+
+    .btn-view {
+        background: var(--border); color: var(--text-primary); text-decoration: none;
+        font-weight: 700; font-size: 0.75rem;
+        padding: 7px 14px; border-radius: 10px; transition: all 0.15s;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-view:hover { background: var(--accent); color: #fff; transform: scale(1.08); }
+    .btn-delete {
+        background: #fee2e2; color: #dc2626; border: none;
+        font-weight: 700; font-size: 0.75rem;
+        padding: 7px 11px; border-radius: 10px; transition: all 0.15s;
+        display: inline-flex; align-items: center; cursor: pointer;
+    }
+    .btn-delete:hover { background: #dc2626; color: #fff; transform: scale(1.08); }
+
+    .empty { padding: 60px 24px; text-align: center; color: #94a3b8; }
+    .empty svg { margin-bottom: 12px; }
+    .empty h3 { color: var(--text-primary); font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .empty p  { color: var(--text-muted); font-size: 0.85rem; }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 768px) {
+        .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+        th, td { padding: 12px 14px; font-size: 0.78rem; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="content-wrap">
+    <div class="header">
+        <div>
+            <h1>Historial de Paradas</h1>
+            <p>Registro de todas las paradas consultadas.</p>
+        </div>
+        <div class="header-count">{{ records|length }} búsquedas</div>
+    </div>
+
+    <div class="card">
+        {% if records|length > 0 %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parada</th>
+                        <th>Nombre</th>
+                        <th>Dirección</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                        <tr>
+                            <td><div class="stop-id">{{ r.stopId }}</div></td>
+                            <td><div class="stop-name">{{ r.stopName ?? '—' }}</div></td>
+                            <td><span class="stop-addr">{{ r.address ?? '—' }}</span></td>
+                            <td><span class="date">{{ r.fechaHora|date('d/m/Y H:i') }}</span></td>
+                            <td>
+                                <div style="display:flex; gap:8px;" onclick="event.stopPropagation()">
+                                    <a href="{{ path('app_buses', {'parada': r.stopId}) }}" class="btn-view">
+                                        Ver
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </a>
+                                    <form action="{{ path('app_buses_eliminar', {'id': r.id}) }}" method="POST" onsubmit="return confirm('¿Eliminar?')">
+                                        <button type="submit" class="btn-delete" title="Eliminar">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 9v6M15 9v6"/></svg>
+                <h3>Sin historial</h3>
+                <p>Busca una parada para empezar a registrar.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

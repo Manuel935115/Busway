@@ -10,12 +10,12 @@
     /* ── SEARCH ── */
     .search-section { margin-bottom: 24px; }
     .search-bar {
-        background: #fff;
+        background: var(--card-bg);
         border-radius: 16px;
         display: flex; align-items: center;
         padding: 6px 6px 6px 20px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
-        border: 1px solid rgba(0,0,0,0.06);
+        border: 1px solid var(--border);
         transition: all .3s;
     }
     .search-bar:focus-within {
@@ -25,7 +25,7 @@
     .search-icon { color: #94a3b8; margin-right: 4px; flex-shrink: 0; }
     .search-bar input {
         flex: 1; border: none; outline: none;
-        font-size: 0.92rem; color: #1e293b; font-weight: 500;
+        font-size: 0.92rem; color: var(--text-primary); font-weight: 500;
         background: transparent; padding: 10px 12px;
         font-family: inherit;
     }
@@ -60,29 +60,30 @@
 
     /* ── CARD ── */
     .train-card {
-        background: #fff;
+        background: var(--card-bg);
         border-radius: 20px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.06);
+        border: 1px solid var(--border);
         margin-bottom: 20px;
         overflow: hidden;
         animation: fadeInUp 0.5s ease;
+        transition: background 0.3s, border 0.3s;
     }
 
     /* ── HEADER ── */
     .tr-header {
         padding: 22px 28px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--border);
         display: flex; align-items: center; justify-content: space-between;
     }
     .tr-header-left { display: flex; align-items: center; gap: 16px; }
     .tr-type-icon {
-        width: 60px; height: 60px; border-radius: 12px;
-        background: #f0fdf4; border: 1px solid #bbf7d0;
+        width: 60px; height: 60px;
         display: flex; align-items: center; justify-content: center;
         color: #16a34a;
     }
-    .tr-ident { font-size: 1.1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
-    .tr-meta  { font-size: 0.78rem; color: #64748b; font-weight: 500; margin-top: 1px; }
+    .tr-ident { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+    .tr-meta  { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; margin-top: 1px; }
 
     .badge {
         padding: 5px 14px; border-radius: 8px;
@@ -96,15 +97,15 @@
     .badge-gray   { background: #64748b; color: #fff; }
 
     /* ── PROGRESS BAR ── */
-    .tr-progress { padding: 20px 28px; border-bottom: 1px solid #f1f5f9; }
+    .tr-progress { padding: 20px 28px; border-bottom: 1px solid var(--border); }
     .tr-progress-label {
         font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 1px; color: #64748b; margin-bottom: 12px;
+        letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px;
         display: flex; align-items: center; gap: 8px;
     }
     .tr-progress-label svg { color: #16a34a; }
     .tr-bar-track {
-        height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;
+        height: 6px; background: var(--border); border-radius: 4px; overflow: hidden;
     }
     .tr-bar-fill {
         height: 100%; background: linear-gradient(90deg, #16a34a, #22c55e);
@@ -121,25 +122,27 @@
     .tr-route-section {
         padding: 24px 28px;
         display: flex; gap: 0;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--border);
     }
     .tr-ep {
         flex: 1; padding: 16px 20px;
-        border-radius: 14px; background: #f8fafc;
-        border: 1px solid #f1f5f9;
+        border-radius: 14px; background: rgba(0,0,0,0.02);
+        border: 1px solid var(--border);
+        transition: background 0.3s;
     }
+    body.dark-mode .tr-ep { background: rgba(255,255,255,0.03); }
     .tr-ep + .tr-ep { margin-left: 16px; }
     .tr-ep-label {
         font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
         letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px;
     }
-    .tr-ep-name { font-size: 0.95rem; font-weight: 800; color: #0f172a; }
-    .tr-ep-sub  { font-size: 0.78rem; color: #64748b; margin-top: 4px; font-weight: 500; }
+    .tr-ep-name { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+    .tr-ep-sub  { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 
     /* ── STOP HIGHLIGHT ── */
     .tr-next-section {
         padding: 20px 28px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--border);
         display: flex; gap: 16px; align-items: flex-start;
     }
     .tr-next-dot {
@@ -148,15 +151,15 @@
         box-shadow: 0 0 0 4px rgba(22,163,74,0.2);
         animation: pulse 2s infinite;
     }
-    .tr-next-label { font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-    .tr-next-name  { font-size: 1rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
+    .tr-next-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .tr-next-name  { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-top: 2px; }
     .tr-next-time  { font-size: 0.82rem; color: #16a34a; font-weight: 700; margin-top: 3px; }
 
     /* ── DETAILS GRID ── */
     .tr-details { padding: 24px 28px; }
     .tr-details-header {
         font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 1px; color: #64748b; margin-bottom: 20px;
+        letter-spacing: 1px; color: var(--text-muted); margin-bottom: 20px;
         display: flex; align-items: center; gap: 8px;
     }
     .tr-details-header svg { color: #16a34a; }
@@ -164,29 +167,33 @@
     .tr-detail-item { display: flex; align-items: flex-start; gap: 12px; }
     .tr-detail-icon {
         width: 40px; height: 40px; border-radius: 12px;
-        background: #f0fdf4; color: #16a34a;
+        background: rgba(0,0,0,0.02); color: #16a34a;
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
+        transition: background 0.3s;
     }
-    .tr-detail-label { font-size: 0.62rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
-    .tr-detail-value { font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+    body.dark-mode .tr-detail-icon { background: rgba(255,255,255,0.03); }
+    .tr-detail-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .tr-detail-value { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin-top: 2px; }
 
     /* ── MORE RESULTS ── */
     .more-results { margin-top: 8px; }
     .more-results-header {
         font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
-        color: #64748b; text-transform: uppercase;
+        color: var(--text-muted); text-transform: uppercase;
         margin-bottom: 12px;
     }
     .more-results table { width: 100%; border-collapse: collapse; }
     .more-results th {
-        background: #f8fafc; padding: 10px 16px;
-        font-size: 0.65rem; font-weight: 700; color: #64748b;
+        background: rgba(0,0,0,0.02); padding: 10px 16px;
+        font-size: 0.65rem; font-weight: 700; color: var(--text-muted);
         text-transform: uppercase; letter-spacing: 1px;
-        border-bottom: 1px solid #f1f5f9; text-align: left;
+        border-bottom: 1px solid var(--border); text-align: left;
     }
-    .more-results td { padding: 12px 16px; font-size: 0.82rem; border-top: 1px solid #f8fafc; }
-    .more-results tbody tr:hover { background: #f8fafb; }
+    body.dark-mode .more-results th { background: rgba(255,255,255,0.03); }
+    .more-results td { padding: 12px 16px; font-size: 0.82rem; border-top: 1px solid var(--border); }
+    .more-results tbody tr:hover { background: rgba(0,0,0,0.02); }
+    body.dark-mode .more-results tbody tr:hover { background: rgba(255,255,255,0.03); }
     .delay-pill {
         display: inline-block; padding: 3px 10px; border-radius: 8px;
         font-size: 0.68rem; font-weight: 800;
@@ -196,16 +203,21 @@
     .delay-pill.green  { background: #f0fdf4; color: #16a34a; }
 
     .alert-error {
-        background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
-        border-radius: 14px; padding: 14px 20px; margin-bottom: 20px;
-        font-size: 0.85rem; font-weight: 600;
-        display: flex; align-items: center; gap: 10px;
+        background: var(--card-bg); color: #dc2626; border: 1px solid #fecaca;
+        border-radius: 20px; padding: 24px; margin-bottom: 24px;
+        font-size: 0.95rem; font-weight: 600;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px;
+        box-shadow: 0 4px 20px rgba(220, 38, 38, 0.08);
+        animation: fadeInUp 0.5s ease;
+        transition: background 0.3s, border 0.3s;
     }
+    body.dark-mode .alert-error { border-color: rgba(220, 38, 38, 0.3); }
+    .alert-error svg { color: #dc2626; width: 32px; height: 32px; margin-bottom: 4px; }
 
     .empty-state {
-        text-align: center; padding: 60px 24px; color: #94a3b8;
+        text-align: center; padding: 60px 24px; color: var(--text-muted);
     }
-    .empty-state svg { margin-bottom: 12px; color: #cbd5e1; }
+    .empty-state svg { margin-bottom: 12px; color: var(--text-muted); opacity: 0.5; }
     .empty-state p { font-size: 0.88rem; font-weight: 500; max-width: 380px; margin: 0 auto; line-height: 1.6; }
 
     @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
@@ -238,8 +250,8 @@
     {# ── ERROR ── #}
     {% if error %}
         <div class="alert-error">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            {{ error }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>{{ error }}</span>
         </div>
     {% endif %}
 
@@ -279,12 +291,21 @@
             {# HEADER #}
             <div class="tr-header">
                 <div class="tr-header-left">
-                    <div class="tr-type-icon" style="background:#fff; padding:4px;">
+                    <div class="tr-type-icon">
                         {% set t = train.product_name|upper|default('') %}
-                        {% if 'OUIGO' in t %}
+                        {% set c = train.cod_comercial|upper|default('') %}
+                        {% if 'OUIGO' in t or c starts with 'OU' %}
                             <img src="{{ app.request.getBasePath() }}/images/operators/ouigo.png" style="width:100%; height:100%; object-fit:contain;">
-                        {% elseif 'IRYO' in t %}
+                        {% elseif 'IRYO' in t or 'FRECC' in t or c starts with 'IR' %}
                             <img src="{{ app.request.getBasePath() }}/images/operators/iryo.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% elseif 'AVLO' in t or c starts with 'BL' %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/avlo.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% elseif 'AVE' in t and 'ALVIA' not in t %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/ave.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% elseif 'ALVIA' in t %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/alvia.png" style="width:100%; height:100%; object-fit:contain;">
+                        {% elseif 'CERCAN' in t or 'RODALIES' in t or 'RODAL' in t %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/cercanias.png" style="width:100%; height:100%; object-fit:contain;">
                         {% else %}
                             <img src="{{ app.request.getBasePath() }}/images/operators/renfe.png" style="width:100%; height:100%; object-fit:contain;">
                         {% endif %}

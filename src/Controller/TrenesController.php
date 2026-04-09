@@ -86,7 +86,7 @@ class TrenesController extends AbstractController
                     $msg = $data['message'] ?? json_encode($data);
                     $error = 'Respuesta inesperada de la API: ' . $msg;
                 } elseif (empty($data['items'])) {
-                    $error = "No se encontró ningún tren activo con el código «{$search}». El tren puede no estar circulando en este momento.";
+                    $error = "El código «{$search}» no existe o no corresponde a ningún tren en circulación en este momento.";
                 } else {
                     $train = null;
                     foreach ($data['items'] as $t) {
