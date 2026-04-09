@@ -383,6 +383,17 @@
 
     <div class="card" style="overflow:hidden;">
         {% if servicios|length > 0 %}
+        <div style="padding:16px 20px; background:var(--card-bg); border-bottom:1px solid var(--border); display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Fecha</label>
+                <input type="date" id="filterFecha" onchange="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(67,97,238,0.03); color:var(--text-primary); font-size:0.85rem; width:150px;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Pasajeros mín</label>
+                <input type="number" id="filterPax" placeholder="0" onchange="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(67,97,238,0.03); color:var(--text-primary); font-size:0.85rem; width:100px;">
+            </div>
+            <button onclick="limpiarFiltros()" style="background:var(--border); border:none; color:var(--text-muted); padding:8px 14px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer; transition:all 0.2s; align-self:flex-end;">Limpiar</button>
+        </div>
         <table class="srv-table">
             <thead>
                 <tr>
@@ -401,11 +412,11 @@
                 {% set expandId = 'expand-' ~ loop.index %}
 
                 {% if esBus %}
-                <tr id="row-{{ loop.index }}" class="expand-row bus-row" onclick="toggleExpand('{{ expandId }}', this)">
+                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
                 {% elseif esTren %}
-                <tr id="row-{{ loop.index }}" class="expand-row tren-row" onclick="toggleExpand('{{ expandId }}', this)">
+                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
                 {% else %}
-                <tr id="row-{{ loop.index }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')">
+                <tr id="row-{{ loop.index }}" class="srv-data-row" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')">
                 {% endif %}
                     <td style="text-align:center; padding:14px 8px;">
                         {% if esBus or esTren %}
@@ -563,6 +574,36 @@ function limpiarCacheLocal() {
         }
     }
     alert('Caché limpiado: ' + count + ' elementos');
+}
+
+function aplicarFiltros() {
+    const fecha = document.getElementById('filterFecha').value;
+    const paxMin = parseInt(document.getElementById('filterPax').value) || 0;
+    const rows = document.querySelectorAll('.srv-data-row');
+    let visibles = 0;
+
+    rows.forEach(row => {
+        const rowFecha = row.dataset.fecha || '';
+        const rowPax = parseInt(row.dataset.pax) || 0;
+
+        const matchFecha = !fecha || rowFecha === fecha;
+        const matchPax = rowPax >= paxMin;
+
+        if (matchFecha && matchPax) {
+            row.style.display = '';
+            visibles++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    console.log('Filtrado: ' + visibles + ' vuelos visibles');
+}
+
+function limpiarFiltros() {
+    document.getElementById('filterFecha').value = '';
+    document.getElementById('filterPax').value = '';
+    document.querySelectorAll('.srv-data-row').forEach(row => row.style.display = '');
 }
 
 function abrirVuelo(data, rowId) {
