@@ -2,63 +2,151 @@
 
 {% block title %}Ajustes | Busway{% endblock %}
 
+{% block stylesheets %}
+<style>
+    .ajustes-grid { display: grid; gap: 32px; }
+    .ajustes-section-title {
+        font-size: 1rem; font-weight: 700; margin-bottom: 16px; 
+        display: flex; align-items: center; gap: 8px;
+        color: var(--text-primary);
+    }
+    .ajustes-section-title svg { color: var(--accent); }
+    
+    .profile-banner {
+        display: flex; align-items: center; gap: 20px; 
+        padding: 20px; background: rgba(0,0,0,0.02); 
+        border-radius: 16px; border: 1px solid var(--border);
+        transition: background 0.3s;
+    }
+    body.dark-mode .profile-banner { background: rgba(255,255,255,0.03); }
+    
+    .profile-avatar {
+        width: 64px; height: 64px; border-radius: 50%; 
+        background: var(--accent); display: flex; 
+        align-items: center; justify-content: center; 
+        color: #fff; font-size: 1.5rem; font-weight: 800;
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+    }
+    
+    .setting-row {
+        display: flex; align-items: center; justify-content: space-between; 
+        padding: 16px 0; border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    
+    .setting-info h4 { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+    .setting-info p { color: var(--text-muted); font-size: 0.78rem; margin-top: 2px; }
+    
+    .btn-edit {
+        margin-left: auto; padding: 8px 16px; border-radius: 10px; 
+        border: 1px solid var(--border); background: var(--card-bg); 
+        color: var(--text-primary); font-weight: 700; cursor: pointer;
+        font-size: 0.82rem; transition: all 0.2s;
+    }
+    .btn-edit:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .custom-select {
+        padding: 8px 12px; border-radius: 10px; 
+        border: 1px solid var(--border); background: var(--input-bg); 
+        color: var(--text-primary); font-family: inherit; font-size: 0.88rem;
+        outline: none; transition: border-color 0.2s;
+    }
+    .custom-select:focus { border-color: var(--accent); }
+
+    .toggle-mock {
+        width: 44px; height: 24px; background: var(--accent); 
+        border-radius: 20px; position: relative; cursor: pointer;
+    }
+    .toggle-mock::after {
+        content: ''; position: absolute; right: 3px; top: 3px; 
+        width: 18px; height: 18px; background: #fff; border-radius: 50%;
+    }
+
+    .btn-danger {
+        padding: 12px 20px; border-radius: 12px; 
+        background: rgba(220, 38, 38, 0.08); color: #dc2626; 
+        border: 1px solid rgba(220, 38, 38, 0.2); 
+        font-weight: 700; cursor: pointer; font-size: 0.88rem;
+        transition: all 0.2s;
+    }
+    .btn-danger:hover { background: #dc2626; color: #fff; }
+</style>
+{% endblock %}
+
 {% block body %}
-<h1>Ajustes</h1>
-<p style="opacity: 0.7;">Gestiona tu cuenta y preferencias de navegación.</p>
+<div class="content-wrap">
+    <div style="margin-bottom: 28px;">
+        <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.8px;">Ajustes</h1>
+        <p style="margin: 6px 0 0; color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Gestiona tu cuenta y preferencias de navegación.</p>
+    </div>
 
-<article style="padding: 2rem;">
-    <h2 style="margin-top: 0; margin-bottom: 1.5rem;">👤 Perfil de Usuario</h2>
-    <div style="display: flex; gap: 1.5rem; align-items: center; margin-bottom: 1.5rem;">
-        <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--form-element-valid-border-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.5rem;">U</div>
-        <div>
-            <strong style="display: block; font-size: 1.1rem;">Usuario Busway</strong>
-            <small style="display: block; opacity: 0.7;">usuario@busway.es</small>
+    <div class="card" style="padding: 32px;">
+        <div class="ajustes-grid">
+            <!-- Perfil -->
+            <section>
+                <div class="ajustes-section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    Perfil de Usuario
+                </div>
+                <div class="profile-banner">
+                    <div class="profile-avatar">U</div>
+                    <div>
+                        <div style="font-weight: 800; font-size: 1.1rem; color: var(--text-primary);">Usuario Busway</div>
+                        <div style="color: var(--text-muted); font-size: 0.88rem;">usuario@busway.es</div>
+                    </div>
+                    <button class="btn-edit">Editar Perfil</button>
+                </div>
+            </section>
+
+            <!-- Preferencias -->
+            <section>
+                <div class="ajustes-section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    Preferencias del Sistema
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Notificaciones Push</h4>
+                        <p>Recibir alertas de retrasos y cambios en tiempo real.</p>
+                    </div>
+                    <div class="toggle-mock"></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Idioma de la Interfaz</h4>
+                        <p>Selecciona tu idioma preferido para el dashboard.</p>
+                    </div>
+                    <select class="custom-select">
+                        <option>Español (ES)</option>
+                        <option>English (UK)</option>
+                        <option>Français (FR)</option>
+                        <option>Deutsch (DE)</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h4>Unidades de Distancia</h4>
+                        <p>Mostrar distancias en kilómetros o millas.</p>
+                    </div>
+                    <select class="custom-select">
+                        <option>Kilómetros (km)</option>
+                        <option>Millas (mi)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Seguridad -->
+            <section>
+                <div class="ajustes-section-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    Seguridad
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 4px;">
+                    <button class="btn-danger">Cambiar Contraseña</button>
+                    <button class="btn-edit">Cerrar Sesión en otros dispositivos</button>
+                </div>
+            </section>
         </div>
-        <button class="button" style="margin-left: auto;">Editar Perfil</button>
     </div>
-</article>
-
-<article style="padding: 2rem;">
-    <h2 style="margin-top: 0; margin-bottom: 1.5rem;">⚙️ Preferencias del Sistema</h2>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #ddd;">
-        <div>
-            <strong>Notificaciones Push</strong>
-            <small style="display: block; opacity: 0.7;">Recibir alertas de retrasos y cambios en tiempo real.</small>
-        </div>
-        <input type="checkbox" checked>
-    </div>
-
-    <div style="padding: 1rem 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd;">
-        <div>
-            <strong>Idioma de la Interfaz</strong>
-            <small style="display: block; opacity: 0.7;">Selecciona tu idioma preferido para el dashboard.</small>
-        </div>
-        <select>
-            <option>Español (ES)</option>
-            <option>English (UK)</option>
-            <option>Français (FR)</option>
-            <option>Deutsch (DE)</option>
-        </select>
-    </div>
-
-    <div style="padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <strong>Unidades de Distancia</strong>
-            <small style="display: block; opacity: 0.7;">Mostrar distancias en kilómetros o millas.</small>
-        </div>
-        <select>
-            <option>Kilómetros (km)</option>
-            <option>Millas (mi)</option>
-        </select>
-    </div>
-</article>
-
-<article style="padding: 2rem;">
-    <h2 style="margin-top: 0; margin-bottom: 1.5rem;">🔒 Seguridad</h2>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        <button class="button button-outline" style="color: #dc2626; border-color: #dc2626;">Cambiar Contraseña</button>
-        <button class="button button-outline">Cerrar Sesión en otros dispositivos</button>
-    </div>
-</article>
+</div>
 {% endblock %}

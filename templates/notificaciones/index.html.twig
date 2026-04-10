@@ -2,68 +2,153 @@
 
 {% block title %}Notificaciones — Busway{% endblock %}
 
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .notif-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .notif-header h1 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .notif-count-badge {
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+    .notif-section-title {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--text-muted);
+        margin: 24px 0 10px;
+    }
+    .notif-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 18px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        transition: background 0.2s, border 0.2s;
+    }
+    .notif-icon {
+        width: 42px; height: 42px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .notif-icon.vuelo { background: rgba(234,88,12,0.12); color: #ea580c; }
+    .notif-icon svg { width: 20px; height: 20px; }
+    .notif-icon img { width: 100%; height: 100%; object-fit: contain; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+    .notif-sub   { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .notif-delay {
+        font-size: 0.8rem; font-weight: 800;
+        padding: 4px 10px; border-radius: 8px;
+        white-space: nowrap;
+    }
+    .notif-delay.alto   { background: rgba(220,38,38,0.12); color: #dc2626; }
+    .notif-delay.medio  { background: rgba(234,88,12,0.12); color: #ea580c; }
+    .notif-delay.bajo   { background: rgba(234,179,8,0.12); color: #ca8a04; }
+    .notif-time { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; margin-left: 8px; }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 0.95rem; font-weight: 500; }
+</style>
+{% endblock %}
+
 {% block body %}
-<h1>
-    Notificaciones
-    {% if total > 0 %}
-        <span class="badge">{{ total }}</span>
-    {% endif %}
-</h1>
+<div class="content-wrap">
+    <div class="notif-header">
+        <h1>Notificaciones</h1>
+        {% if total > 0 %}
+            <span class="notif-count-badge">{{ total }}</span>
+        {% endif %}
+    </div>
 
-{% if total == 0 %}
-    <article class="text-center" style="padding: 3rem 1rem;">
-        <p style="opacity: 0.7; font-size: 1.1rem;">Sin retrasos en tus búsquedas</p>
-    </article>
-{% else %}
-    {% if trenes|length > 0 %}
-        <h2 style="margin-top: 2rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6;">Trenes</h2>
-        {% for t in trenes %}
-            {% set delayClass = t.retraso > 30 ? 'badge-red' : (t.retraso > 15 ? 'badge-orange' : 'badge-green') %}
-            <article style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
-                <div>
-                    {% set tipo = t.tipo|upper|default('') %}
-                    {% if 'OUIGO' in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/ouigo.png" alt="Ouigo" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% elseif 'IRYO' in tipo or 'FRECC' in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/iryo.png" alt="Iryo" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% elseif 'AVLO' in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/avlo.png" alt="Avlo" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% elseif 'AVE' in tipo and 'ALVIA' not in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/ave.png" alt="AVE" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% elseif 'ALVIA' in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/alvia.png" alt="Alvia" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% elseif 'CERCAN' in tipo or 'RODAL' in tipo %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/cercanias.png" alt="Cercanías" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% else %}
-                        <img src="{{ app.request.getBasePath() }}/images/operators/renfe.png" alt="Renfe" style="width: 42px; height: 42px; object-fit: contain;">
-                    {% endif %}
-                </div>
-                <div style="flex: 1;">
-                    <strong>{{ t.tipo ?? 'Tren' }} {{ t.codigo }}</strong>
-                    <small style="display: block; opacity: 0.7;">{{ t.origen ?? '—' }} → {{ t.destino ?? '—' }}</small>
-                </div>
-                <span class="badge {{ delayClass }}">+{{ t.retraso }} min</span>
-                <small style="opacity: 0.6; white-space: nowrap;">{{ t.actualizado }}</small>
-            </article>
-        {% endfor %}
-    {% endif %}
+    {% if total == 0 %}
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <p>Sin retrasos en tus búsquedas</p>
+        </div>
+    {% else %}
 
-    {% if vuelos|length > 0 %}
-        <h2 style="margin-top: 2rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6;">Vuelos</h2>
-        {% for v in vuelos %}
-            {% set delayClass = v.retraso > 60 ? 'badge-red' : (v.retraso > 30 ? 'badge-orange' : 'badge-green') %}
-            <article style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
-                <div style="width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; background: rgba(234,88,12,0.1); border-radius: 8px; color: #ea580c;">
-                    ✈
+        {% if trenes|length > 0 %}
+            <div class="notif-section-title">Trenes</div>
+            {% for t in trenes %}
+                {% set delayClass = t.retraso > 30 ? 'alto' : (t.retraso > 15 ? 'medio' : 'bajo') %}
+                <div class="notif-item">
+                    <div class="notif-icon">
+                        {% set tipo = t.tipo|upper|default('') %}
+                        {% if 'OUIGO' in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/ouigo.png" alt="Ouigo">
+                        {% elseif 'IRYO' in tipo or 'FRECC' in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/iryo.png" alt="Iryo">
+                        {% elseif 'AVLO' in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/avlo.png" alt="Avlo">
+                        {% elseif 'AVE' in tipo and 'ALVIA' not in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/ave.png" alt="AVE">
+                        {% elseif 'ALVIA' in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/alvia.png" alt="Alvia">
+                        {% elseif 'CERCAN' in tipo or 'RODAL' in tipo %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/cercanias.png" alt="Cercanías">
+                        {% else %}
+                            <img src="{{ app.request.getBasePath() }}/images/operators/renfe.png" alt="Renfe">
+                        {% endif %}
+                    </div>
+                    <div class="notif-body">
+                        <div class="notif-title">{{ t.tipo ?? 'Tren' }} {{ t.codigo }}</div>
+                        <div class="notif-sub">{{ t.origen ?? '—' }} → {{ t.destino ?? '—' }}</div>
+                    </div>
+                    <span class="notif-delay {{ delayClass }}">+{{ t.retraso }} min</span>
+                    <span class="notif-time">{{ t.actualizado }}</span>
                 </div>
-                <div style="flex: 1;">
-                    <strong>Vuelo {{ v.numero }}</strong>
-                    <small style="display: block; opacity: 0.7;">{{ v.estado ?? '—' }}</small>
+            {% endfor %}
+        {% endif %}
+
+        {% if vuelos|length > 0 %}
+            <div class="notif-section-title">Vuelos</div>
+            {% for v in vuelos %}
+                {% set delayClass = v.retraso > 60 ? 'alto' : (v.retraso > 30 ? 'medio' : 'bajo') %}
+                <div class="notif-item">
+                    <div class="notif-icon vuelo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.7l-1 2.5 7.5 4.6-3.7 3.7-3.1-.8c-.4-.1-.8.2-1 .6l-.6 1.6 3.9 1.4 1.4 3.9 1.6-.6c.4-.2.7-.6.6-1l-.8-3.1 3.7-3.7 4.6 7.5 2.5-1c.5-.2.8-.6.7-1.1z"/>
+                        </svg>
+                    </div>
+                    <div class="notif-body">
+                        <div class="notif-title">Vuelo {{ v.numero }}</div>
+                        <div class="notif-sub">{{ v.estado ?? '—' }}</div>
+                    </div>
+                    <span class="notif-delay {{ delayClass }}">+{{ v.retraso }} min</span>
+                    <span class="notif-time">{{ v.actualizado }}</span>
                 </div>
-                <span class="badge {{ delayClass }}">+{{ v.retraso }} min</span>
-                <small style="opacity: 0.6; white-space: nowrap;">{{ v.actualizado }}</small>
-            </article>
-        {% endfor %}
+            {% endfor %}
+        {% endif %}
+
     {% endif %}
-{% endif %}
+</div>
 {% endblock %}
