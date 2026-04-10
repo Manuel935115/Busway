@@ -3,227 +3,8 @@
 {% block title %}Historial de Búsquedas | Busway{% endblock %}
 
 {% block stylesheets %}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-    /* Estilos específicos de esta vista */
-
-    .header {
-        margin-bottom: 24px;
-        display: flex; justify-content: space-between; align-items: flex-end;
-    }
-    .header h1 {
-        font-size: 1.6rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px;
-    }
-    .header p { margin: 4px 0 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
-    .header-count {
-        color: var(--text-muted); font-size: 0.82rem; font-weight: 600;
-        background: var(--card-bg); padding: 6px 14px; border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        border: 1px solid var(--border);
-    }
-
-    .card {
-        background: var(--card-bg);
-        border-radius: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.06);
-        border: 1px solid var(--border);
-        overflow: hidden;
-        animation: fadeInUp 0.5s ease;
-        transition: background 0.3s, border 0.3s;
-    }
-
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th {
-        background: rgba(0,0,0,0.02); padding: 14px 20px; font-size: 0.68rem;
-        font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
-        border-bottom: 1px solid var(--border);
-    }
-    body.dark-mode th { background: rgba(255,255,255,0.03); }
-    td {
-        padding: 16px 20px; border-top: 1px solid var(--border);
-        font-size: 0.88rem; color: var(--text-primary); vertical-align: middle;
-    }
-    tbody tr:hover { background: rgba(0,0,0,0.02); }
-    body.dark-mode tbody tr:hover { background: rgba(255,255,255,0.03); }
-
-    .flight-num {
-        font-weight: 800; color: var(--text-primary);
-        display: inline-flex; align-items: center; gap: 8px;
-    }
-    .flight-num svg { color: #4361ee; width: 16px; height: 16px; }
-    .route { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text-primary); font-size: 0.85rem; }
-    .route-arrow { color: var(--text-muted); font-weight: 400; font-size: 0.9rem; }
-    .status {
-        display: inline-block; padding: 4px 12px; border-radius: 8px;
-        font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
-    }
-    .status.en-route { background: #4361ee; color: #fff; }
-    .status.arrived { background: #16a34a; color: #fff; }
-    .status.scheduled { background: #d97706; color: #fff; }
-
-    .date { color: var(--text-muted); font-size: 0.82rem; font-weight: 500; }
-    .btn-view {
-        background: var(--border); color: var(--text-primary); text-decoration: none;
-        font-weight: 700; font-size: 0.75rem;
-        padding: 7px 14px; border-radius: 10px; transition: all 0.15s;
-        display: inline-flex; align-items: center; gap: 5px;
-    }
-    .btn-view:hover { background: #4361ee; color: #fff; transform: scale(1.08); box-shadow: 0 0 14px rgba(67,97,238,0.4); }
-
-    .btn-delete {
-        background: #fee2e2; color: #dc2626; border: none;
-        font-weight: 700; font-size: 0.75rem;
-        padding: 7px 11px; border-radius: 10px; transition: all 0.15s;
-        display: inline-flex; align-items: center; cursor: pointer;
-    }
-    .btn-delete:hover { background: #dc2626; color: #fff; transform: scale(1.08); box-shadow: 0 0 14px rgba(220,38,38,0.3); }
-
-    .alert {
-        padding: 12px 20px; border-radius: 12px; margin-bottom: 20px;
-        font-size: 0.85rem; font-weight: 600;
-    }
-    .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-
-    .empty {
-        padding: 60px 24px; text-align: center; color: #94a3b8;
-    }
-    .empty svg { margin-bottom: 12px; }
-    .empty h3 { color: var(--text-primary); font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
-    .empty p { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
-
-    .airline-logo {
-        width: 48px; height: 48px; border-radius: 10px;
-        background: var(--card-bg); border: 1px solid var(--border);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden;
-        transition: background 0.3s;
-    }
-    .airline-logo img { width: 40px; height: 40px; object-fit: contain; }
-
-    tbody tr { cursor: pointer; }
-
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-
-    @media (max-width: 768px) {
-        .header { flex-direction: column; gap: 12px; align-items: flex-start; }
-        th, td { padding: 12px 14px; font-size: 0.78rem; }
-    }
-
-    /* ── PANEL LATERAL ── */
-    .panel-overlay {
-        position: fixed; inset: 0; background: rgba(15,23,42,0.45);
-        backdrop-filter: blur(4px); z-index: 200;
-        opacity: 0; visibility: hidden; transition: all 0.3s ease;
-    }
-    .panel-overlay.open { opacity: 1; visibility: visible; }
-
-    .detail-panel {
-        position: fixed; top: 0; right: 0; bottom: 0;
-        width: 420px; max-width: 100vw;
-        background: var(--card-bg);
-        border-left: 1px solid var(--border);
-        z-index: 201;
-        display: flex; flex-direction: column;
-        transform: translateX(100%);
-        transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-        overflow-y: auto;
-    }
-    .detail-panel.open { transform: translateX(0); }
-
-    .panel-header {
-        display: flex; align-items: center; gap: 14px;
-        padding: 20px 22px;
-        border-bottom: 1px solid var(--border);
-        position: sticky; top: 0;
-        background: var(--card-bg);
-        z-index: 1;
-    }
-    .panel-logo {
-        width: 48px; height: 48px; border-radius: 10px;
-        background: var(--card-bg); border: 1px solid var(--border);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden; flex-shrink: 0;
-    }
-    .panel-logo img { width: 40px; height: 40px; object-fit: contain; }
-    .panel-flight-num { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
-    .panel-operator   { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
-    .panel-close {
-        margin-left: auto; background: none; border: none;
-        color: var(--text-muted); cursor: pointer; padding: 6px;
-        border-radius: 8px; transition: background 0.15s;
-    }
-    .panel-close:hover { background: rgba(0,0,0,0.06); }
-
-    .panel-body { padding: 20px 22px; flex: 1; }
-
-    .panel-status-row { margin-bottom: 20px; }
-
-    .panel-route {
-        display: flex; align-items: center; gap: 10px;
-        margin-bottom: 22px;
-    }
-    .panel-ep { flex: 1; }
-    .panel-ep-code { font-size: 1.5rem; font-weight: 900; color: var(--text-primary); letter-spacing: -1px; }
-    .panel-ep-name  { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
-    .panel-route-line {
-        flex: 1; height: 2px; background: var(--border); position: relative;
-    }
-    .panel-route-line::after {
-        content: '✈';
-        position: absolute; top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 16px; color: var(--accent);
-        background: var(--card-bg); padding: 0 6px;
-    }
-    .panel-arrow { color: var(--text-muted); }
-
-    .panel-section-title {
-        font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
-        letter-spacing: 1.2px; color: var(--text-muted);
-        margin: 18px 0 10px;
-    }
-    .panel-times {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
-    .panel-time-item {
-        background: rgba(0,0,0,0.03);
-        border: 1px solid var(--border);
-        border-radius: 12px; padding: 12px 14px;
-        transition: background 0.3s;
-    }
-    body.dark-mode .panel-time-item { background: rgba(255,255,255,0.04); }
-    .panel-time-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
-    .panel-time-val   { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-top: 4px; }
-    .panel-time-val.delayed { color: #dc2626; }
-    .panel-time-val.ontime  { color: #16a34a; }
-
-    .panel-info-row {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 0; border-bottom: 1px solid var(--border);
-        font-size: 0.84rem;
-    }
-    .panel-info-row:last-child { border-bottom: none; }
-    .panel-info-label { color: var(--text-muted); font-weight: 500; }
-    .panel-info-val   { font-weight: 700; color: var(--text-primary); text-align: right; max-width: 60%; }
-
-    .panel-progress-wrap { margin: 14px 0; }
-    .panel-progress-bar {
-        height: 6px; background: var(--border); border-radius: 999px; overflow: hidden;
-    }
-    .panel-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--accent), #22c55e);
-        border-radius: 999px;
-        transition: width 0.4s ease;
-    }
-    .panel-progress-label {
-        display: flex; justify-content: space-between;
-        font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; font-weight: 500;
-    }
-
-    @media (max-width: 480px) {
-        .detail-panel { width: 100vw; }
-    }
+.header{margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end}.header h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.5px}.header p{margin:4px 0 0;color:var(--text-muted);font-size:0.85rem;font-weight:500}.header-count{color:var(--text-muted);font-size:0.82rem;font-weight:600;background:var(--card-bg);padding:6px 14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid var(--border)}.card{background:var(--card-bg);border-radius:20px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.06);border:1px solid var(--border);overflow:hidden}table{width:100%;border-collapse:collapse;text-align:left}th{background:rgba(0,0,0,.02);padding:14px 20px;font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}body.dark-mode th{background:rgba(255,255,255,.03)}td{padding:16px 20px;border-top:1px solid var(--border);font-size:.88rem;color:var(--text-primary);vertical-align:middle}tbody tr:hover{background:rgba(0,0,0,.02)}body.dark-mode tbody tr:hover{background:rgba(255,255,255,.03)}.flight-num{font-weight:800;color:var(--text-primary);display:inline-flex;align-items:center;gap:8px}.flight-num svg{color:#4361ee;width:16px;height:16px}.route{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--text-primary);font-size:.85rem}.route-arrow{color:var(--text-muted);font-weight:400;font-size:.9rem}.status{display:inline-block;padding:4px 12px;border-radius:8px;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px}.status.en-route{background:#4361ee;color:#fff}.status.arrived{background:#16a34a;color:#fff}.status.scheduled{background:#d97706;color:#fff}.date{color:var(--text-muted);font-size:.82rem;font-weight:500}.airline-logo{width:48px;height:48px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden}.airline-logo img{width:40px;height:40px;object-fit:contain}tbody tr{cursor:pointer}.empty{padding:60px 24px;text-align:center;color:#94a3b8}.empty svg{margin-bottom:12px}.empty h3{color:var(--text-primary);font-size:1rem;font-weight:700;margin-bottom:6px}.empty p{color:var(--text-muted);font-size:.85rem;font-weight:500}.alert{padding:12px 20px;border-radius:12px;margin-bottom:20px;font-size:.85rem;font-weight:600}.alert-success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}#infinite-scroll-trigger{height:100px;text-align:center;padding:20px;color:var(--text-muted)}#loading-indicator{display:none}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}#loading-indicator svg{animation:spin 1s linear infinite}.panel-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:200;opacity:0;visibility:hidden;transition:all .3s ease}.panel-overlay.open{opacity:1;visibility:visible}.detail-panel{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:100vw;background:var(--card-bg);border-left:1px solid var(--border);z-index:201;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow-y:auto}.detail-panel.open{transform:translateX(0)}.panel-header{display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card-bg);z-index:1}.panel-logo{width:48px;height:48px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}.panel-logo img{width:40px;height:40px;object-fit:contain}.panel-flight-num{font-size:1.3rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.5px}.panel-operator{font-size:.8rem;color:var(--text-muted);font-weight:500;margin-top:2px}.panel-close{margin-left:auto;background:0;border:0;color:var(--text-muted);cursor:pointer;padding:6px;border-radius:8px;transition:background .15s}.panel-close:hover{background:rgba(0,0,0,.06)}.panel-body{padding:20px 22px;flex:1}.panel-status-row{margin-bottom:20px}.panel-route{display:flex;align-items:center;gap:10px;margin-bottom:22px}.panel-ep{flex:1}.panel-ep-code{font-size:1.5rem;font-weight:900;color:var(--text-primary);letter-spacing:-1px}.panel-ep-name{font-size:.75rem;color:var(--text-muted);font-weight:500;margin-top:2px}.panel-route-line{flex:1;height:2px;background:var(--border);position:relative}.panel-route-line::after{content:'✈';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;color:var(--accent);background:var(--card-bg);padding:0 6px}.panel-arrow{color:var(--text-muted)}.panel-section-title{font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin:18px 0 10px}.panel-times{display:grid;grid-template-columns:1fr 1fr;gap:10px}.panel-time-item{background:rgba(0,0,0,.03);border:1px solid var(--border);border-radius:12px;padding:12px 14px}.body.dark-mode .panel-time-item{background:rgba(255,255,255,.04)}.panel-time-label{font-size:.65rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px}.panel-time-val{font-size:.9rem;font-weight:700;color:var(--text-primary);margin-top:4px}.panel-time-val.delayed{color:#dc2626}.panel-time-val.ontime{color:#16a34a}.panel-info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:.84rem}.panel-info-row:last-child{border-bottom:0}.panel-info-label{color:var(--text-muted);font-weight:500}.panel-info-val{font-weight:700;color:var(--text-primary);text-align:right;max-width:60%}.panel-progress-wrap{margin:14px 0}.panel-progress-bar{height:6px;background:var(--border);border-radius:999px;overflow:hidden}.panel-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#22c55e);border-radius:999px;transition:width .4s ease}.panel-progress-label{display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted);margin-top:5px;font-weight:500}@media (max-width:768px){.header{flex-direction:column;gap:12px;align-items:flex-start}th,td{padding:12px 14px;font-size:.78rem}}@media (max-width:480px){.detail-panel{width:100vw}}
 </style>
 {% endblock %}
 
@@ -235,9 +16,6 @@
             <h1>Historial de Búsquedas</h1>
             <p>Registro de todas las consultas realizadas en la base de datos.</p>
         </div>
-        <div class="header-count">
-            {{ records|length }} vuelos registrados
-        </div>
     </div>
 
     {% for message in app.flashes('success') %}
@@ -248,7 +26,7 @@
 
     <div class="card">
         {% if records|length > 0 %}
-            <table>
+            <table id="flightsTable">
                 <thead>
                     <tr>
                         <th>Aerolínea</th>
@@ -259,7 +37,7 @@
                         <th>Fecha de Búsqueda</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="flightsTableBody">
                     {% for r in records %}
                         {% set statusClass = '' %}
                         {% if 'En Route' in r.estado.nombre or 'Taxi' in r.estado.nombre %}
@@ -275,26 +53,10 @@
                                 <div class="airline-logo">
                                     {% set iata_val = r.rawData.operator_iata|default(r.vuelo.numero|slice(0,2)|upper) %}
                                     {% set icao_val = r.rawData.operator_icao|default(r.rawData.operator|default(r.vuelo.numero|slice(0,3)|upper)) %}
-                                    <img
+                                    <img loading="lazy"
                                         src="{{ app.request.getBasePath() }}/images/airlines/{{ icao_val }}.png"
                                         alt="{{ icao_val }}"
-                                        onerror="
-                                            if (!this.dataset.step) {
-                                                this.dataset.step = '1';
-                                                this.src = 'https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_val|slice(0,3) }}.png';
-                                            } else if (this.dataset.step === '1') {
-                                                this.dataset.step = '2';
-                                                this.src = 'https://content.airhex.com/content/logos/airlines_{{ iata_val }}_100_100_s.png';
-                                            } else if (this.dataset.step === '2') {
-                                                this.dataset.step = '3';
-                                                this.src = 'https://pics.avs.io/ab_icons/150/{{ icao_val }}.png';
-                                            } else {
-                                                const letter = '{{ r.vuelo.numero }}'.charAt(0).toUpperCase();
-                                                const colors = ['#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0', '#22c55e', '#f59e0b', '#ef4444'];
-                                                const color = colors[letter.charCodeAt(0) % colors.length];
-                                                this.parentElement.innerHTML = `<div style='width:32px; height:32px; border-radius:8px; background:${color}; color:white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem;'>${letter}</div>`;
-                                            }
-                                        "
+                                        onerror="if(!this.dataset.step){this.dataset.step='1';this.src='https://e1.flightcdn.com/images/airline_logos/90p/{{ icao_val|slice(0,3) }}.png';}else if(this.dataset.step==='1'){this.dataset.step='2';this.src='https://content.airhex.com/content/logos/airlines_{{ iata_val }}_100_100_s.png';}else if(this.dataset.step==='2'){this.dataset.step='3';this.src='https://pics.avs.io/ab_icons/150/{{ icao_val }}.png';}else{const l='{{ r.vuelo.numero }}'.charAt(0).toUpperCase();const c=['#4361ee','#3a0ca3','#7209b7','#f72585','#4cc9f0','#22c55e','#f59e0b','#ef4444'][l.charCodeAt(0)%8];this.parentElement.innerHTML=`<div style='width:32px;height:32px;border-radius:8px;background:\${c};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;'>\${l}</div>`;}"
                                     >
                                 </div>
                             </td>
@@ -323,6 +85,12 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div id="infinite-scroll-trigger">
+                <div id="loading-indicator">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2" stroke-linecap="round"/></svg>
+                    Cargando...
+                </div>
+            </div>
         {% else %}
             <div class="empty">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
@@ -333,7 +101,6 @@
     </div>
 </div>
 
-<!-- Panel lateral -->
 <div class="panel-overlay" id="panelOverlay" onclick="cerrarPanel()"></div>
 <div class="detail-panel" id="detailPanel">
     <div class="panel-header">
@@ -360,123 +127,6 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.tz-datetime').forEach(el => {
-        if(el.dataset.time) {
-            const d = new Date(el.dataset.time);
-            el.innerText = d.toLocaleString([], {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'});
-        }
-    });
-});
-
-function fmt(iso) {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleString([], {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
-}
-
-function timeItem(label, val, cls) {
-    return `<div class="panel-time-item">
-        <div class="panel-time-label">${label}</div>
-        <div class="panel-time-val ${cls||''}">${val}</div>
-    </div>`;
-}
-
-function infoRow(label, val) {
-    if (!val) return '';
-    return `<div class="panel-info-row">
-        <span class="panel-info-label">${label}</span>
-        <span class="panel-info-val">${val}</span>
-    </div>`;
-}
-
-function abrirPanel(data, flightNum) {
-    const icao = data.operator_icao || data.operator || flightNum.slice(0,3).toUpperCase();
-    const iata = data.operator_iata || flightNum.slice(0,2).toUpperCase();
-
-    // Logo
-    const logo = document.getElementById('panelLogo');
-    logo.innerHTML = `<img src="/images/airlines/${icao}.png" alt="${icao}"
-        onerror="
-            if(!this.dataset.s){this.dataset.s='1';this.src='https://e1.flightcdn.com/images/airline_logos/90p/${icao.slice(0,3)}.png';}
-            else if(this.dataset.s==='1'){this.dataset.s='2';this.src='https://content.airhex.com/content/logos/airlines_${iata}_100_100_s.png';}
-            else if(this.dataset.s==='2'){this.dataset.s='3';this.src='https://pics.avs.io/ab_icons/150/${icao}.png';}
-            else{const l='${flightNum}'.charAt(0).toUpperCase();const colors=['#4361ee','#3a0ca3','#7209b7','#f72585','#4cc9f0','#22c55e','#f59e0b','#ef4444'];const c=colors[l.charCodeAt(0)%colors.length];this.parentElement.innerHTML='<div style=\\'width:40px;height:40px;border-radius:8px;background:'+c+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;\\'>'+l+'</div>';}
-        ">`;
-
-    document.getElementById('panelFlightNum').textContent = flightNum;
-    document.getElementById('panelOperator').textContent = data.operator_icao || data.operator || '';
-
-    // Status
-    const statusMap = {'En Route':'en-route','Taxi Out':'en-route','Taxi In':'en-route','Arrived':'arrived','Scheduled':'scheduled'};
-    const st = data.status || '—';
-    const sc = Object.keys(statusMap).find(k => st.includes(k));
-    document.getElementById('panelStatusRow').innerHTML = `<span class="status ${sc ? statusMap[sc] : ''}">${st}</span>`;
-
-    // Route
-    const orig = data.origin || {};
-    const dest = data.destination || {};
-    document.getElementById('panelRoute').innerHTML = `
-        <div class="panel-ep">
-            <div class="panel-ep-code">${orig.code_iata || orig.code || '—'}</div>
-            <div class="panel-ep-name">${orig.city || orig.name || ''}</div>
-        </div>
-        <div class="panel-route-line"></div>
-        <div class="panel-ep" style="text-align:right">
-            <div class="panel-ep-code">${dest.code_iata || dest.code || '—'}</div>
-            <div class="panel-ep-name">${dest.city || dest.name || ''}</div>
-        </div>`;
-
-    // Progress
-    const pct = data.progress_percent || 0;
-    if (pct > 0) {
-        document.getElementById('panelProgress').innerHTML = `
-            <div class="panel-progress-bar"><div class="panel-progress-fill" style="width:${pct}%"></div></div>
-            <div class="panel-progress-label"><span>${orig.code_iata||'—'}</span><span>${pct}%</span><span>${dest.code_iata||'—'}</span></div>`;
-    } else {
-        document.getElementById('panelProgress').innerHTML = '';
-    }
-
-    // Departure times
-    const depSch = fmt(data.scheduled_out);
-    const depEst = fmt(data.estimated_out);
-    const depAct = fmt(data.actual_out);
-    const depDelayed = data.actual_out && data.scheduled_out && new Date(data.actual_out) > new Date(data.scheduled_out);
-    document.getElementById('panelDep').innerHTML =
-        timeItem('Programada', depSch) +
-        timeItem('Estimada', depEst) +
-        timeItem('Real', depAct, depDelayed ? 'delayed' : (data.actual_out ? 'ontime' : ''));
-
-    // Arrival times
-    const arrSch = fmt(data.scheduled_in);
-    const arrEst = fmt(data.estimated_in);
-    const arrAct = fmt(data.actual_in);
-    const arrDelayed = data.actual_in && data.scheduled_in && new Date(data.actual_in) > new Date(data.scheduled_in);
-    document.getElementById('panelArr').innerHTML =
-        timeItem('Programada', arrSch) +
-        timeItem('Estimada', arrEst) +
-        timeItem('Real', arrAct, arrDelayed ? 'delayed' : (data.actual_in ? 'ontime' : ''));
-
-    // Extra info
-    document.getElementById('panelInfo').innerHTML =
-        infoRow('Aeronave', data.aircraft_type || null) +
-        infoRow('Matrícula', data.registration || null) +
-        infoRow('Aerolínea ICAO', data.operator_icao || null) +
-        infoRow('Aerolínea IATA', data.operator_iata || null) +
-        infoRow('Origen (nombre)', orig.name || null) +
-        infoRow('Destino (nombre)', dest.name || null) +
-        infoRow('Velocidad', data.last_position ? (data.last_position.groundspeed + ' kt') : null) +
-        infoRow('Altitud', data.last_position ? (data.last_position.altitude*100 + ' ft') : null);
-
-    document.getElementById('panelOverlay').classList.add('open');
-    document.getElementById('detailPanel').classList.add('open');
-}
-
-function cerrarPanel() {
-    document.getElementById('panelOverlay').classList.remove('open');
-    document.getElementById('detailPanel').classList.remove('open');
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanel(); });
+let offset=20,loading=false;const colors=['#4361ee','#3a0ca3','#7209b7','#f72585','#4cc9f0','#22c55e','#f59e0b','#ef4444'];function fmt(iso){if(!iso)return'—';const d=new Date(iso);return d.toLocaleString([],{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}function addRow(r){let st='';if(r.estado.includes('En Route')||r.estado.includes('Taxi'))st='en-route';else if(r.estado.includes('Arrived'))st='arrived';else if(r.estado.includes('Scheduled'))st='scheduled';const a=r.operador_icao||r.operador_iata.slice(0,3).toUpperCase();const e=r.operador_iata;const d=JSON.stringify(r.rawData).replace(/"/g,'&quot;');return`<tr onclick="abrirPanel(${d},'${r.vuelo}')"><td><div class="airline-logo"><img loading="lazy" src="/images/airlines/${a}.png" alt="${a}" onerror="try{if(!this.dataset.step){this.dataset.step='1';this.src='https://e1.flightcdn.com/images/airline_logos/90p/${a.slice(0,3)}.png';}else if(this.dataset.step==='1'){this.dataset.step='2';this.src='https://content.airhex.com/content/logos/airlines_${e}_100_100_s.png';}else if(this.dataset.step==='2'){this.dataset.step='3';this.src='https://pics.avs.io/ab_icons/150/${a}.png';}else{const l='${r.vuelo}'.charAt(0);const c=['#4361ee','#3a0ca3','#7209b7','#f72585','#4cc9f0','#22c55e','#f59e0b','#ef4444'][l.charCodeAt(0)%8];this.parentElement.innerHTML=\`<div style='width:32px;height:32px;border-radius:8px;background:\${c};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;'>\${l}</div>\`;}}catch(e){}"><td><span class="flight-num">${r.vuelo}</span><td><div class="route">${r.origen}<span class="route-arrow">→</span>${r.destino}</div><td><span class="date">${r.horaSalida||'Indeterminada'}</span><td><span class="status ${st}">${r.estado}</span><td><span class="date">${r.fechaBusqueda}</span>`;}function loadMore(){if(loading)return;loading=true;const ind=document.getElementById('loading-indicator');ind.style.display='block';fetch(`/api/historial?offset=${offset}&limit=20`).then(r=>r.json()).then(t=>{if(t.records&&t.records.length){const tb=document.getElementById('flightsTableBody');t.records.forEach(r=>{tb.insertAdjacentHTML('beforeend',addRow(r))});offset+=t.records.length;}loading=false;ind.style.display='none';}).catch(e=>{loading=false;document.getElementById('loading-indicator').style.display='none';});}document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.tz-datetime').forEach(r=>{if(r.dataset.time){const d=new Date(r.dataset.time);r.innerText=d.toLocaleString([],{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}});const trig=document.getElementById('infinite-scroll-trigger');if(trig){new IntersectionObserver(e=>{e[0].isIntersecting&&!loading&&loadMore();},{threshold:.1}).observe(trig);}});function abrirPanel(data,flightNum){const icao=data.operator_icao||data.operator||flightNum.slice(0,3).toUpperCase();const iata=data.operator_iata||flightNum.slice(0,2).toUpperCase();const logo=document.getElementById('panelLogo');logo.innerHTML=`<img src="/images/airlines/${icao}.png" alt="${icao}" onerror="try{if(!this.dataset.s){this.dataset.s='1';this.src='https://e1.flightcdn.com/images/airline_logos/90p/${icao.slice(0,3)}.png';}else if(this.dataset.s==='1'){this.dataset.s='2';this.src='https://content.airhex.com/content/logos/airlines_${iata}_100_100_s.png';}else if(this.dataset.s==='2'){this.dataset.s='3';this.src='https://pics.avs.io/ab_icons/150/${icao}.png';}else{const l='${flightNum}'.charAt(0).toUpperCase();const c=['#4361ee','#3a0ca3','#7209b7','#f72585','#4cc9f0','#22c55e','#f59e0b','#ef4444'][l.charCodeAt(0)%8];this.parentElement.innerHTML='<div style=\"width:40px;height:40px;border-radius:8px;background:'+c+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;\">'+l+'</div>';}}catch(e){}">`;document.getElementById('panelFlightNum').textContent=flightNum;document.getElementById('panelOperator').textContent=data.operator_icao||data.operator||'';const statusMap={'En Route':'en-route','Taxi Out':'en-route','Taxi In':'en-route','Arrived':'arrived','Scheduled':'scheduled'};const st=data.status||'—';const sc=Object.keys(statusMap).find(k=>st.includes(k));document.getElementById('panelStatusRow').innerHTML=`<span class="status ${sc?statusMap[sc]:''}">${st}</span>`;const orig=data.origin||{};const dest=data.destination||{};document.getElementById('panelRoute').innerHTML=`<div class="panel-ep"><div class="panel-ep-code">${orig.code_iata||orig.code||'—'}</div><div class="panel-ep-name">${orig.city||orig.name||''}</div></div><div class="panel-route-line"></div><div class="panel-ep" style="text-align:right"><div class="panel-ep-code">${dest.code_iata||dest.code||'—'}</div><div class="panel-ep-name">${dest.city||dest.name||''}</div></div>`;const pct=data.progress_percent||0;if(pct>0){document.getElementById('panelProgress').innerHTML=`<div class="panel-progress-bar"><div class="panel-progress-fill" style="width:${pct}%"></div></div><div class="panel-progress-label"><span>${orig.code_iata||'—'}</span><span>${pct}%</span><span>${dest.code_iata||'—'}</span></div>`;}else{document.getElementById('panelProgress').innerHTML='';}const depSch=fmt(data.scheduled_out);const depEst=fmt(data.estimated_out);const depAct=fmt(data.actual_out);const depDelayed=data.actual_out&&data.scheduled_out&&new Date(data.actual_out)>new Date(data.scheduled_out);document.getElementById('panelDep').innerHTML=`<div class="panel-time-item"><div class="panel-time-label">Programada</div><div class="panel-time-val">${depSch}</div></div><div class="panel-time-item"><div class="panel-time-label">Estimada</div><div class="panel-time-val">${depEst}</div></div><div class="panel-time-item"><div class="panel-time-label">Real</div><div class="panel-time-val ${depDelayed?'delayed':data.actual_out?'ontime':''}">${depAct}</div></div>`;const arrSch=fmt(data.scheduled_in);const arrEst=fmt(data.estimated_in);const arrAct=fmt(data.actual_in);const arrDelayed=data.actual_in&&data.scheduled_in&&new Date(data.actual_in)>new Date(data.scheduled_in);document.getElementById('panelArr').innerHTML=`<div class="panel-time-item"><div class="panel-time-label">Programada</div><div class="panel-time-val">${arrSch}</div></div><div class="panel-time-item"><div class="panel-time-label">Estimada</div><div class="panel-time-val">${arrEst}</div></div><div class="panel-time-item"><div class="panel-time-label">Real</div><div class="panel-time-val ${arrDelayed?'delayed':data.actual_in?'ontime':''}">${arrAct}</div></div>`;let info='';if(data.aircraft_type)info+=`<div class="panel-info-row"><span class="panel-info-label">Aeronave</span><span class="panel-info-val">${data.aircraft_type}</span></div>`;if(data.registration)info+=`<div class="panel-info-row"><span class="panel-info-label">Matrícula</span><span class="panel-info-val">${data.registration}</span></div>`;if(data.operator_icao)info+=`<div class="panel-info-row"><span class="panel-info-label">Aerolínea ICAO</span><span class="panel-info-val">${data.operator_icao}</span></div>`;if(data.operator_iata)info+=`<div class="panel-info-row"><span class="panel-info-label">Aerolínea IATA</span><span class="panel-info-val">${data.operator_iata}</span></div>`;if(orig.name)info+=`<div class="panel-info-row"><span class="panel-info-label">Origen</span><span class="panel-info-val">${orig.name}</span></div>`;if(dest.name)info+=`<div class="panel-info-row"><span class="panel-info-label">Destino</span><span class="panel-info-val">${dest.name}</span></div>`;if(data.last_position)info+=`<div class="panel-info-row"><span class="panel-info-label">Velocidad</span><span class="panel-info-val">${data.last_position.groundspeed} kt</span></div>`;if(data.last_position)info+=`<div class="panel-info-row"><span class="panel-info-label">Altitud</span><span class="panel-info-val">${data.last_position.altitude*100} ft</span></div>`;document.getElementById('panelInfo').innerHTML=info;document.getElementById('panelOverlay').classList.add('open');document.getElementById('detailPanel').classList.add('open');}function cerrarPanel(){document.getElementById('panelOverlay').classList.remove('open');document.getElementById('detailPanel').classList.remove('open');}document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrarPanel();});
 </script>
 {% endblock %}

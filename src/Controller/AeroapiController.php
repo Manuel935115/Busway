@@ -20,10 +20,6 @@ class AeroapiController extends AbstractController
         private LoggerInterface $logger,
     ) {}
 
-    /**
-     * Llama a la AeroAPI de FlightAware con SSL verificado.
-     * Devuelve el body JSON como string, o null si falla.
-     */
     private function fetchAeroApi(string $flightNumber, string $apiKey): ?string
     {
         $options = [
@@ -33,7 +29,7 @@ class AeroapiController extends AbstractController
                     'x-apikey: ' . trim($apiKey),
                     'Accept: application/json; charset=UTF-8',
                 ],
-                'ignore_errors' => true,  // recibir body en HTTP 4xx/5xx
+                'ignore_errors' => true,
                 'timeout'       => 10,
             ],
             'ssl' => [
@@ -45,7 +41,6 @@ class AeroapiController extends AbstractController
         $context  = stream_context_create($options);
         $url      = 'https://aeroapi.flightaware.com/aeroapi/flights/' . urlencode($flightNumber);
 
-        // Suprimir warning de PHP pero capturar el error manualmente
         set_error_handler(static function () { return true; });
         $body = file_get_contents($url, false, $context);
         restore_error_handler();
@@ -70,7 +65,6 @@ class AeroapiController extends AbstractController
         $error        = null;
 
         if ($flightNumber !== '') {
-            // Validación de formato: 2-3 letras seguidas de 1-4 dígitos (IATA/ICAO)
             if (!preg_match('/^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/', $flightNumber)) {
                 $error = "Formato de vuelo no válido. Ejemplos: IB3456, EZY1234, VY1234.";
             } else {
@@ -79,7 +73,6 @@ class AeroapiController extends AbstractController
                 if (empty($apiKey)) {
                     $error = "Falta configurar la clave AERO_API_KEY en el archivo .env.local de tu proyecto.";
                 } else {
-                    // --- SISTEMA DE CACHÉ (Ahorro de dinero) ---
                     $fiveMinutesAgo = new \DateTime('-5 minutes');
                     $cachedRecord = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('ev')
                         ->join('ev.vuelo', 'v')
@@ -209,13 +202,15 @@ class AeroapiController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        return $this->render('aeroapi/index.html.twig', [
+        $resp = $this->render('aeroapi/index.html.twig', [
             'controller_name'  => 'AeroapiController',
             'flight_info'      => $flightData,
             'searched_flight'  => $flightNumber,
             'error'            => $error,
             'servicios'        => $servicios,
         ]);
+        $resp->setCache(['public' => false, 'max_age' => 60]);
+        return $resp;
     }
 
     #[Route('/api/vuelo/{flight}', name: 'api_vuelo_info', requirements: ['flight' => '.+'])]
@@ -223,7 +218,6 @@ class AeroapiController extends AbstractController
     {
         $flight = strtoupper(trim($flight));
 
-        // Validación de formato
         if (!preg_match('/^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/', $flight)) {
             return new JsonResponse(['error' => 'Número de vuelo no válido'], 400);
         }
@@ -296,11 +290,34 @@ class AeroapiController extends AbstractController
     #[Route('/historial', name: 'app_aeroapi_historial')]
     public function historial(EntityManagerInterface $em): Response
     {
-        $records = $em->getRepository(EstadoVuelo::class)->findBy([], ['fechaHora' => 'DESC']);
+        $records = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('e')
+            ->select('e,v,s')
+            ->join('e.vuelo', 'v')
+            ->join('e.estado', 's')
+            ->orderBy('e.fechaHora', 'DESC')
+            ->setMaxResults(20)
+            ->getQuery()
+            ->getResult();
 
         return $this->render('aeroapi/historial.html.twig', [
             'records' => $records,
         ]);
+    }
+
+    #[Route('/api/historial', name: 'api_historial', methods: ['GET'])]
+    public function apiHistorial(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $o=(int)$request->query->get('offset',0);
+        $l=min((int)$request->query->get('limit',20),100);
+        $r=$em->getRepository(EstadoVuelo::class)->createQueryBuilder('e')->select('e.id,e.rawData,e.fechaHora,e.horaSalida,s.nombre,v.numero')->join('e.vuelo','v')->join('e.estado','s')->orderBy('e.fechaHora','DESC')->setMaxResults($l)->setFirstResult($o)->getQuery()->getResult();
+        $d=[];
+        foreach($r as $x){
+            $w=$x['rawData'];
+            $d[]=['id'=>$x['id'],'vuelo'=>$x['numero'],'operador_icao'=>$w['operator_icao']??'','operador_iata'=>$w['operator_iata']??'','origen'=>$w['origin']['code_iata']??$w['origin']['code']??'---','destino'=>$w['destination']['code_iata']??$w['destination']['code']??'---','horaSalida'=>$x['horaSalida']?$x['horaSalida']->format('d/m/Y H:i'):null,'estado'=>$x['nombre'],'fechaBusqueda'=>$x['fechaHora']->format('d/m/Y H:i:s'),'rawData'=>$w];
+        }
+        $c=new JsonResponse(['records'=>$d]);
+        $c->setCache(['public'=>true,'max_age'=>300]);
+        return $c;
     }
 
     #[Route('/historial/eliminar/{id}', name: 'app_aeroapi_eliminar', methods: ['POST'])]

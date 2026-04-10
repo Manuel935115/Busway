@@ -1,0 +1,17 @@
+framework:
+    cache:
+        default: cache.app
+        pools:
+            cache.app:
+                adapter: cache.adapter.filesystem
+                directory: "%kernel.project_dir%/var/cache"
+    http_cache:
+        enabled: true
+    session:
+        storage_id: session.storage.native
+    serializer:
+        enabled: true
+    validation:
+        enabled: true
+    form:
+        enabled: false
