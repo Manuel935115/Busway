@@ -318,6 +318,10 @@
             <button onclick="cerrarPanelTren()" style="background:var(--border); border:none; border-radius:10px; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0;">✕</button>
         </div>
         <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px;">
+            <a id="tr-maps-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none; align-items:center; gap:8px; padding:10px 14px; background:rgba(67,97,238,0.08); border:1px solid var(--border); border-radius:10px; text-decoration:none; color:var(--accent); font-size:0.85rem; font-weight:600; transition:all 0.2s;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Ver trayecto en Google Maps
+            </a>
             <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:16px 18px;">
                 <div style="font-size:0.62rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">Tipo</div>
                 <div id="tr-type" style="font-size:0.95rem; color:var(--text-primary);">—</div>
@@ -603,13 +607,23 @@ function abrirTren(data, rowId) {
     document.getElementById('tr-next').textContent = data.next_station_name || '—';
     document.getElementById('tr-corridor').textContent = data.des_corridor || '—';
 
+    // Google Maps link
+    const mapsLink = document.getElementById('tr-maps-link');
+    if (data.origin_name && data.destination_name) {
+        const route = encodeURIComponent(data.origin_name + ' to ' + data.destination_name);
+        mapsLink.href = `https://www.google.com/maps/dir/${route}`;
+        mapsLink.style.display = 'flex';
+    }
+
     document.getElementById('detail-overlay').style.display = 'block';
     document.getElementById('detail-panel').style.right = '0';
+    document.body.classList.add('detail-panel-open');
 }
 
 function cerrarPanelTren() {
     document.getElementById('detail-overlay').style.display = 'none';
     document.getElementById('detail-panel').style.right = '-360px';
+    document.body.classList.remove('detail-panel-open');
     if (activeRowTren) {
         document.getElementById(activeRowTren)?.classList.remove('active-row');
         activeRowTren = null;
