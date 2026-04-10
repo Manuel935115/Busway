@@ -414,7 +414,7 @@
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
             <button onclick="limpiarCacheLocal()" title="Borra caché local de buses y vuelos" style="background:var(--border); border:none; color:var(--text-muted); padding:6px 12px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer; transition:all 0.2s;">↻ Refrescar</button>
-            <span style="background:var(--card-bg); border:1px solid var(--border); padding:6px 14px; border-radius:10px; font-size:0.78rem; font-weight:700; color:var(--text-muted); box-shadow:0 1px 3px rgba(0,0,0,0.05);">{{ servicios|length }} vuelos</span>
+            <span id="vuelos-count" style="background:var(--card-bg); border:1px solid var(--border); padding:6px 14px; border-radius:10px; font-size:0.78rem; font-weight:700; color:var(--text-muted); box-shadow:0 1px 3px rgba(0,0,0,0.05);">{{ servicios|length }} vuelos</span>
         </div>
     </div>
 
@@ -455,16 +455,17 @@
             <tbody>
                 {% for s in servicios %}
                 {% set vt = s.vueloTren|lower %}
-                {% set esBus = 'movelia' in vt or 'bus' in vt %}
-                {% set esTren = (not esBus) and ('alvia' in vt or 'avlo' in vt or 'iryo' in vt or 'euromed' in vt or 'avant' in vt or 'cercanias' in vt or ('md' == vt|slice(0,2)) or ('i6' == vt|slice(0,2))) %}
+                {% set prefix = vt|slice(0,2) %}
+                {% set esBus = 'movelia' in vt or 'bus' in vt or prefix in ['sr', 'br', 'fr'] or 'alsa' in vt or 'blablacar' in vt %}
+                {% set esTren = (not esBus) and ('alvia' in vt or 'avlo' in vt or 'iryo' in vt or 'euromed' in vt or 'avant' in vt or 'cercanias' in vt or prefix in ['md', 'i6', 'nm', 'rd']) %}
                 {% set expandId = 'expand-' ~ loop.index %}
 
                 {% if esBus %}
-                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
                 {% elseif esTren %}
-                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)">
                 {% else %}
-                <tr id="row-{{ loop.index }}" class="srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="srv-data-row" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')">
                 {% endif %}
                     <td style="text-align:center; padding:14px 8px;">
                         {% if esBus or esTren %}
@@ -532,7 +533,7 @@
                     </td>
                 </tr>
                 {% if esBus or esTren %}
-                <tr id="{{ expandId }}" style="display:none;" {% if loop.index > 30 %}class="lazy-hidden"{% endif %} {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %} data-coord="{{ s.coord|e('html_attr') }}">
+                <tr id="{{ expandId }}" style="display:none;"  {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %} data-coord="{{ s.coord|e('html_attr') }}">
                     <td colspan="6" style="padding:0;">
                         <div class="svc-expand-body {{ esBus ? 'svc-bus' : 'svc-tren' }}">
                             <div class="svc-expand-grid">
@@ -587,8 +588,8 @@
                 {% endfor %}
             </tbody>
         </table>
-        <div id="lazy-sentinel" style="padding:20px; text-align:center; height:50px; display:flex; align-items:center; justify-content:center; border-top:1px solid var(--border);">
-            <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Cargando más…</span>
+        <div id="scroll-sentinel" style="padding:20px; text-align:center; height:50px; display:flex; align-items:center; justify-content:center; border-top:1px solid var(--border);">
+            <span id="sentinel-text" style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Cargando más…</span>
         </div>
         {% else %}
         <div style="padding:60px 24px; text-align:center; color:var(--text-muted);">
@@ -977,34 +978,147 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Lazy loading de vuelos
-const sentinel = document.getElementById('lazy-sentinel');
-const hasHiddenRows = () => document.querySelectorAll('.lazy-hidden').length > 0;
+// Infinite scroll — carga 20 servicios más desde la API al llegar abajo
+(function() {
+    let srvOffset = {{ servicios|length }};
+    let srvLoading = false;
+    let srvDone = false;
+    const sentinel = document.getElementById('scroll-sentinel');
+    const sentinelText = document.getElementById('sentinel-text');
+    const tbody = document.querySelector('.srv-table tbody');
+    if (!sentinel || !tbody) return;
 
-if (sentinel && hasHiddenRows()) {
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const hiddenRows = document.querySelectorAll('.lazy-hidden');
-                let loaded = 0;
+    // Si la carga inicial trajo menos de 20, ya no hay más
+    if (srvOffset < 20) {
+        sentinelText.textContent = 'No hay más vuelos';
+        sentinelText.style.opacity = '0.6';
+        return;
+    }
 
-                hiddenRows.forEach(row => {
-                    if (loaded >= 30) return;
-                    row.style.display = '';
-                    row.classList.remove('lazy-hidden');
-                    loaded++;
-                });
+    function buildRow(s, idx) {
+        const vt = (s.vt || '').toLowerCase();
+        const esBus = vt.includes('movelia') || vt.includes('bus') || /^(sr|br|fr|alsa|blablacar)/.test(vt);
+        const esTren = !esBus && (/^(alvia|avlo|iryo|euromed|avant|cercanias|nm|md|i6|rd)/.test(vt) || vt.slice(0,2)==='md' || vt.slice(0,2)==='i6');
+        const rowId = 'row-dyn-' + srvOffset + '-' + idx;
+        const expandId = 'expand-dyn-' + srvOffset + '-' + idx;
+        const codigo = s.co || '';
+        const vueloTren = s.vt || '';
+        const origen = s.or || '';
+        const destino = s.de || '';
+        const fecha = s.fe || '';
+        const pax = s.pa || '0';
+        const fechaParts = fecha.split(' ');
+        const origenShort = origen.split(' ')[0];
+        const destinoShort = destino.split(' ')[0];
 
-                // Si no hay más filas, actualizar sentinel
-                if (!hasHiddenRows()) {
-                    sentinel.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted); opacity:0.6; font-weight:600;">Fin de los vuelos</span>';
-                    observer.disconnect();
+        let rowClass = 'srv-data-row';
+        let onclick = '';
+        let chevron = '';
+        let logo = '';
+        let nameSpan = '';
+        let route = '';
+
+        if (esBus) {
+            rowClass += ' expand-row bus-row';
+            onclick = `onclick="toggleExpand('${expandId}', this)"`;
+            chevron = '<svg class="row-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" style="transition:transform 0.2s; display:block; margin:auto;"><path d="M9 6l6 6-6 6"/></svg>';
+            logo = '<div class="airline-logo-wrap" style="background:rgba(22,163,74,0.08);border-color:rgba(22,163,74,0.25);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 9v6M15 9v6"/></svg></div>';
+            nameSpan = `<span class="flight-num" style="color:#16a34a; font-size:0.82rem;">${vueloTren}</span>`;
+            route = `<div style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">${origenShort} → ${destinoShort}</div>`;
+        } else if (esTren) {
+            rowClass += ' expand-row tren-row';
+            onclick = `onclick="toggleExpand('${expandId}', this)"`;
+            chevron = '<svg class="row-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" style="transition:transform 0.2s; display:block; margin:auto;"><path d="M9 6l6 6-6 6"/></svg>';
+            logo = '<div class="airline-logo-wrap" style="background:rgba(217,119,6,0.08);border-color:rgba(217,119,6,0.25);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16M12 3v8M8 19l-2 3M18 22l-2-3M8 15h.01M16 15h.01"/></svg></div>';
+            nameSpan = `<span class="flight-num" style="color:#d97706; font-size:0.75rem;">${vueloTren}</span>`;
+            route = `<div style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">${origenShort} → ${destinoShort}</div>`;
+        } else {
+            const srvData = JSON.stringify({codigo, origen, destino, pasajeros: pax, fecha, vueloTren}).replace(/"/g, '&quot;');
+            onclick = `onclick="abrirVuelo(${srvData}, '${rowId}')"`;
+            const iata = vueloTren.slice(0,2);
+            const icao = vueloTren.slice(0,3);
+            logo = `<div class="airline-logo-wrap"><img src="https://pics.avs.io/200/200/${iata}@2x.png" data-icao="${icao}" data-iata="${iata}" onload="this.style.opacity=1" onerror="logoFallback(this)" style="width:32px;height:32px;object-fit:contain;opacity:0;transition:opacity 0.2s;" alt=""></div>`;
+            nameSpan = `<span class="flight-num">${vueloTren}</span>`;
+            route = `<div class="route-cell"><div class="route-main"><span class="route-iata">${origenShort}</span><span class="route-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(90deg);"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span><span class="route-iata">${destinoShort}</span></div><div class="route-sub">${origen} → ${destino}</div></div>`;
+        }
+
+        let fechaHtml = '—';
+        if (fecha) {
+            fechaHtml = `<div style="white-space:nowrap; line-height:1.5;"><div style="font-size:0.82rem; font-weight:600;">${fechaParts[0]}</div>${fechaParts[1] ? `<div style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">${fechaParts[1]}</div>` : ''}</div>`;
+        }
+
+        let html = `<tr id="${rowId}" class="${rowClass}" data-ident="${codigo.toUpperCase()}" data-vuelo="${vueloTren.toUpperCase()}" data-fecha="${fechaParts[0]}" data-datetime="${fecha}" data-pax="${pax}" ${onclick}>
+            <td style="text-align:center; padding:14px 8px;">${chevron}</td>
+            <td><span class="code-badge">${codigo}</span></td>
+            <td><div style="display:flex;align-items:center;gap:10px;min-width:0;">${logo}${nameSpan}</div></td>
+            <td>${route}</td>
+            <td style="font-size:0.82rem; font-weight:600; color:var(--text-primary); text-align:center; padding:12px 16px;">${fechaHtml}</td>
+            <td style="text-align:center;"><span class="pax-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-muted)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> ${pax}</span></td>
+        </tr>`;
+
+        if (esBus || esTren) {
+            const cls = esBus ? 'svc-bus' : 'svc-tren';
+            const btnCls = esBus ? 'svc-btn-bus' : 'svc-btn-tren';
+            const btnHref = esBus ? '{{ path('app_buses') }}' : '{{ path('app_trenes') }}';
+            const btnText = esBus ? 'Ver más en Rastrear Bus' : 'Ver trenes';
+            const coord = s.cd || '';
+            html += `<tr id="${expandId}" style="display:none;" ${coord ? `data-coord="${coord.replace(/"/g,'&quot;')}"` : ''} ${esBus ? `data-origen="${origen.replace(/"/g,'&quot;')}"` : ''}>
+                <td colspan="6" style="padding:0;">
+                    <div class="svc-expand-body ${cls}">
+                        <div class="svc-expand-grid">
+                            <div class="svc-expand-item"><div class="svc-expand-label">Recogida</div><div class="svc-expand-value">${fecha}</div></div>
+                            <div class="svc-expand-item"><div class="svc-expand-label">Pasajeros</div><div class="svc-expand-value">${pax} pax</div></div>
+                            <div class="svc-expand-item" style="grid-column:span 2;"><div class="svc-expand-label">Origen</div><div class="svc-expand-value">${origen}</div></div>
+                            <div class="svc-expand-item" style="grid-column:span 2;"><div class="svc-expand-label">Destino</div><div class="svc-expand-value">${destino}</div></div>
+                        </div>
+                        <a href="${btnHref}" class="svc-expand-btn ${btnCls}">${btnText}</a>
+                    </div>
+                </td>
+            </tr>`;
+        }
+        return html;
+    }
+
+    function loadMoreServicios() {
+        if (srvLoading || srvDone) return;
+        srvLoading = true;
+        sentinelText.textContent = 'Cargando más…';
+        sentinelText.style.opacity = '1';
+
+        fetch('{{ path('api_servicios') }}?offset=' + srvOffset + '&limit=20')
+            .then(r => r.json())
+            .then(data => {
+                const items = data.s || [];
+                if (items.length === 0) {
+                    srvDone = true;
+                    sentinelText.textContent = 'No hay más vuelos';
+                    sentinelText.style.opacity = '0.6';
+                    scrollObs.disconnect();
+                } else {
+                    items.forEach((s, i) => {
+                        tbody.insertAdjacentHTML('beforeend', buildRow(s, i));
+                    });
+                    srvOffset += items.length;
+                    if (items.length < 20) {
+                        srvDone = true;
+                        sentinelText.textContent = 'No hay más vuelos';
+                        sentinelText.style.opacity = '0.6';
+                        scrollObs.disconnect();
+                    }
                 }
-            }
-        });
+                srvLoading = false;
+            })
+            .catch(() => {
+                srvLoading = false;
+                sentinelText.textContent = 'Error al cargar';
+            });
+    }
+
+    const scrollObs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) loadMoreServicios();
     }, { rootMargin: '300px' });
-    observer.observe(sentinel);
-}
+    scrollObs.observe(sentinel);
+})();
 
 // Filtro de vuelos pasados
 function togglePastFlights() {

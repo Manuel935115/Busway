@@ -199,6 +199,7 @@ class AeroapiController extends AbstractController
             ->setParameter('empty', '')
             ->setParameter('headerRow', 'codigo')
             ->orderBy('s.fecha', 'ASC')
+            ->setMaxResults(20)
             ->getQuery()
             ->getResult();
 
@@ -217,87 +218,40 @@ class AeroapiController extends AbstractController
     public function apiVuelo(string $flight, EntityManagerInterface $em): JsonResponse
     {
         $flight = strtoupper(trim($flight));
-
         if (!preg_match('/^[A-Z0-9]{2,3}[0-9]{1,4}[A-Z]?$/', $flight)) {
             return new JsonResponse(['error' => 'Número de vuelo no válido'], 400);
         }
-
         $apiKey = $_ENV['AERO_API_KEY'] ?? '';
         if (empty($apiKey)) {
             return new JsonResponse(['error' => 'Sin clave API'], 500);
         }
-
         $fiveMinutesAgo = new \DateTime('-5 minutes');
         $cached = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('ev')
-            ->join('ev.vuelo', 'v')
-            ->where('v.numero = :fn')
-            ->andWhere('ev.fechaHora >= :t')
-            ->setParameter('fn', $flight)
-            ->setParameter('t', $fiveMinutesAgo)
-            ->orderBy('ev.fechaHora', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()->getOneOrNullResult();
-
-        if ($cached && !empty($cached->getRawData())) {
-            $response = new JsonResponse(['flight' => $cached->getRawData(), 'cached' => true]);
-            $response->setCache(['public' => true, 'max_age' => 300]);
-            return $response;
-        }
-
-        $json = $this->fetchAeroApi($flight, $apiKey);
-
-        if (!$json) return new JsonResponse(['error' => 'No se pudo contactar la API'], 500);
-
-        $data = json_decode($json, true);
-        if (isset($data['detail'])) return new JsonResponse(['error' => $data['detail']], 400);
-        if (empty($data['flights'])) return new JsonResponse(['error' => 'Vuelo no encontrado'], 404);
-
-        $bestFlight = null;
-        $now        = time();
-        $minDiff    = PHP_INT_MAX;
-        foreach ($data['flights'] as $f) {
-            if (stripos($f['status'] ?? '', 'En Route') !== false) { $bestFlight = $f; break; }
-            $t = isset($f['scheduled_out']) ? strtotime($f['scheduled_out']) : 0;
-            if ($t > 0 && abs($now - $t) < $minDiff) { $minDiff = abs($now - $t); $bestFlight = $f; }
-        }
-        if (!$bestFlight) $bestFlight = $data['flights'][0];
-
-        try {
-            $statusStr = mb_substr($bestFlight['status'] ?? 'Desconocido', 0, 100);
-            $estado    = $em->getRepository(Estado::class)->findOneBy(['nombre' => $statusStr]);
-            if (!$estado) { $estado = new Estado(); $estado->setNombre($statusStr); $em->persist($estado); }
-            $vuelo = $em->getRepository(Vuelo::class)->findOneBy(['numero' => $flight]);
-            if (!$vuelo) { $vuelo = new Vuelo(); $vuelo->setNumero($flight); }
-            if (!empty($bestFlight['scheduled_out'])) $vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));
-            if (!empty($bestFlight['scheduled_in']))  $vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));
-            $vuelo->setEstadoActual($estado); $em->persist($vuelo);
-            $ev = $em->getRepository(EstadoVuelo::class)->findOneBy(['vuelo' => $vuelo]);
-            if (!$ev) { $ev = new EstadoVuelo(); $ev->setVuelo($vuelo); }
-            $ev->setEstado($estado); $ev->setFechaHora(new \DateTime()); $ev->setRawData($bestFlight);
-            $em->persist($ev); $em->flush();
-        } catch (\Throwable $e) {
-            $this->logger->error('AeroapiController::apiVuelo: error al guardar en BD', [
-                'flight'    => $flight,
-                'exception' => $e->getMessage(),
-            ]);
-        }
-
-        $response = new JsonResponse(['flight' => $bestFlight, 'cached' => false]);
-        $response->setCache(['public' => true, 'max_age' => 300]);
-        return $response;
+            ->join('ev.vuelo','v')->select('ev.rawData')
+            ->where('v.numero=:fn')->andWhere('ev.fechaHora>=:t')
+            ->setParameter('fn',$flight)->setParameter('t',$fiveMinutesAgo)->orderBy('ev.fechaHora','DESC')->setMaxResults(1)->getQuery()->getOneOrNullResult();
+        if($cached&&$cached['rawData']){$r=new JsonResponse(['flight'=>$cached['rawData'],'cached'=>true]);$r->setCache(['public'=>true,'max_age'=>300]);return $r;}
+        $json=$this->fetchAeroApi($flight,$apiKey);
+        if(!$json)return new JsonResponse(['error'=>'API error'],500);
+        $data=json_decode($json,true);
+        if(isset($data['detail']))return new JsonResponse(['error'=>$data['detail']],400);
+        if(empty($data['flights']))return new JsonResponse(['error'=>'Not found'],404);
+        $bestFlight=null;$now=time();$minDiff=PHP_INT_MAX;
+        foreach($data['flights'] as $f){if(stripos($f['status']??'','En Route')!==false){$bestFlight=$f;break;}$t=isset($f['scheduled_out'])?strtotime($f['scheduled_out']):0;if($t>0&&abs($now-$t)<$minDiff){$minDiff=abs($now-$t);$bestFlight=$f;}}
+        if(!$bestFlight)$bestFlight=$data['flights'][0];
+        try{$statusStr=mb_substr($bestFlight['status']??'Unknown',0,100);$estado=$em->getRepository(Estado::class)->findOneBy(['nombre'=>$statusStr]);if(!$estado){$estado=new Estado();$estado->setNombre($statusStr);$em->persist($estado);}$vuelo=$em->getRepository(Vuelo::class)->findOneBy(['numero'=>$flight]);if(!$vuelo){$vuelo=new Vuelo();$vuelo->setNumero($flight);}if(!empty($bestFlight['scheduled_out']))$vuelo->setHoraSalidaProgramada(new \DateTime($bestFlight['scheduled_out']));if(!empty($bestFlight['scheduled_in']))$vuelo->setHoraLlegadaProgramada(new \DateTime($bestFlight['scheduled_in']));$vuelo->setEstadoActual($estado);$em->persist($vuelo);$ev=$em->getRepository(EstadoVuelo::class)->findOneBy(['vuelo'=>$vuelo]);if(!$ev){$ev=new EstadoVuelo();$ev->setVuelo($vuelo);}$ev->setEstado($estado);$ev->setFechaHora(new \DateTime());$ev->setRawData($bestFlight);$em->persist($ev);$em->flush();}catch(\Throwable $e){$this->logger->error('AeroapiController::apiVuelo: error',['flight'=>$flight,'exception'=>$e->getMessage()]);}
+        $r=new JsonResponse(['flight'=>$bestFlight,'cached'=>false]);$r->setCache(['public'=>true,'max_age'=>300]);return $r;
     }
 
     #[Route('/historial', name: 'app_aeroapi_historial')]
     public function historial(EntityManagerInterface $em): Response
     {
-        $records = $em->getRepository(EstadoVuelo::class)->createQueryBuilder('e')
-            ->select('e,v,s')
-            ->join('e.vuelo', 'v')
-            ->join('e.estado', 's')
-            ->orderBy('e.fechaHora', 'DESC')
-            ->setMaxResults(20)
-            ->getQuery()
-            ->getResult();
+        $records = $em->getRepository(EstadoVuelo::class)->findBy(
+            [],
+            ['fechaHora' => 'DESC'],
+            10,
+            0
+        );
 
         return $this->render('aeroapi/historial.html.twig', [
             'records' => $records,
@@ -309,15 +263,34 @@ class AeroapiController extends AbstractController
     {
         $o=(int)$request->query->get('offset',0);
         $l=min((int)$request->query->get('limit',20),100);
-        $r=$em->getRepository(EstadoVuelo::class)->createQueryBuilder('e')->select('e.id,e.rawData,e.fechaHora,e.horaSalida,s.nombre,v.numero')->join('e.vuelo','v')->join('e.estado','s')->orderBy('e.fechaHora','DESC')->setMaxResults($l)->setFirstResult($o)->getQuery()->getResult();
-        $d=[];
-        foreach($r as $x){
-            $w=$x['rawData'];
-            $d[]=['id'=>$x['id'],'vuelo'=>$x['numero'],'operador_icao'=>$w['operator_icao']??'','operador_iata'=>$w['operator_iata']??'','origen'=>$w['origin']['code_iata']??$w['origin']['code']??'---','destino'=>$w['destination']['code_iata']??$w['destination']['code']??'---','horaSalida'=>$x['horaSalida']?$x['horaSalida']->format('d/m/Y H:i'):null,'estado'=>$x['nombre'],'fechaBusqueda'=>$x['fechaHora']->format('d/m/Y H:i:s'),'rawData'=>$w];
-        }
-        $c=new JsonResponse(['records'=>$d]);
+        $r=$em->getRepository(EstadoVuelo::class)->createQueryBuilder('e')
+            ->select('e.id','e.rawData','e.fechaHora','e.horaSalida','s.nombre','v.numero')
+            ->join('e.vuelo','v')
+            ->join('e.estado','s')
+            ->where('s.nombre IS NOT NULL')
+            ->orderBy('e.fechaHora','DESC')
+            ->setMaxResults($l)
+            ->setFirstResult($o)
+            ->getQuery()
+            ->setFetchMode(EstadoVuelo::class, 'vuelo', \Doctrine\ORM\Query::FETCH_EAGER)
+            ->getResult();
+        $d=[];foreach($r as $x){$w=$x['rawData'];$d[]=['id'=>$x['id'],'v'=>$x['numero'],'oi'=>$w['operator_icao']??'','oia'=>$w['operator_iata']??'','o'=>$w['origin']['code_iata']??$w['origin']['code']??'—','d'=>$w['destination']['code_iata']??$w['destination']['code']??'—','hs'=>$x['horaSalida']?$x['horaSalida']->format('d/m/Y H:i'):null,'s'=>$x['nombre'],'fb'=>$x['fechaHora']->format('d/m/Y H:i:s'),'rw'=>$w];}
+        $c=new JsonResponse(['r'=>$d],200,[]);
         $c->setCache(['public'=>true,'max_age'=>300]);
         return $c;
+    }
+
+    #[Route('/api/servicios', name: 'api_servicios', methods: ['GET'])]
+    public function apiServicios(Request $request, EntityManagerInterface $em): JsonResponse
+    {
+        $o=max(0,(int)$request->query->get('offset',0));
+        $l=min((int)$request->query->get('limit',20),100);
+        $r=$em->getRepository(Servicio::class)->createQueryBuilder('s')
+            ->where('s.vueloTren NOT LIKE :ave')->andWhere('s.vueloTren!=:p')->andWhere('s.vueloTren!=:e')->andWhere('s.codigo!=:h')
+            ->setParameter('ave','AVE%')->setParameter('p','Pendiente')->setParameter('e','')->setParameter('h','codigo')
+            ->orderBy('s.fecha','ASC')->setFirstResult($o)->setMaxResults($l)->getQuery()->getResult();
+        $d=[];foreach($r as $x){$d[]=['co'=>$x->getCodigo(),'or'=>$x->getOrigen(),'de'=>$x->getDestino(),'pa'=>$x->getPasajeros(),'fe'=>$x->getFecha(),'vt'=>$x->getVueloTren(),'cd'=>$x->getCoord()];}
+        $resp=new JsonResponse(['s'=>$d]);$resp->setCache(['public'=>true,'max_age'=>120]);return $resp;
     }
 
     #[Route('/historial/eliminar/{id}', name: 'app_aeroapi_eliminar', methods: ['POST'])]
@@ -327,15 +300,10 @@ class AeroapiController extends AbstractController
         if ($estadoVuelo) {
             $vuelo = $estadoVuelo->getVuelo();
             $em->remove($estadoVuelo);
-
-            $otros = $em->getRepository(EstadoVuelo::class)->count(['vuelo' => $vuelo]);
-            if ($otros === 1 && $vuelo) {
-                $em->remove($vuelo);
-            }
+            if($vuelo && $em->getRepository(EstadoVuelo::class)->count(['vuelo'=>$vuelo])===0){$em->remove($vuelo);}
             $em->flush();
             $this->addFlash('success', 'Registro eliminado correctamente.');
         }
-
         return $this->redirectToRoute('app_aeroapi_historial');
     }
 }

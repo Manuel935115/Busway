@@ -375,7 +375,24 @@
                     <!-- SECTION: TRENES -->
                     <div class="menu-section-title">Trenes</div>
                     <a href="{{ path('app_trenes') }}" class="menu-item {% if app.request.get('_route') == 'app_trenes' %}active{% endif %}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="3" width="16" height="16" rx="2"></rect><path d="M4 11h16"></path><path d="M12 3v8"></path><path d="M8 19l-2 3"></path><path d="M18 22l-2-3"></path><path d="M8 15h.01"></path><path d="M16 15h.01"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                          <!-- Cuerpo principal del tren -->
+                          <rect x="4" y="2" width="16" height="14" rx="2" ry="2" fill="currentColor"/>
+
+                          <!-- Ventana principal grande -->
+                          <rect x="6" y="4" width="12" height="7" rx="1" ry="1" fill="#fff" opacity="0.2"/>
+
+                          <!-- Faros/ojos (luces del tren) -->
+                          <ellipse cx="8" cy="14" rx="1.5" ry="2" fill="currentColor"/>
+                          <ellipse cx="16" cy="14" rx="1.5" ry="2" fill="currentColor"/>
+
+                          <!-- Patas/rieles divergentes -->
+                          <line x1="9" y1="16" x2="4" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          <line x1="15" y1="16" x2="20" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+
+                          <!-- Conectores pequeños en la parte superior -->
+                          <rect x="10" y="1" width="4" height="1.5" rx="0.5" fill="currentColor"/>
+                        </svg>
                         Rastrear Tren
                     </a>
 
