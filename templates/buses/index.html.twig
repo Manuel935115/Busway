@@ -197,11 +197,6 @@
                 Actualizar
             </button>
         </div>
-
-        <a id="bp-maps-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none; align-items:center; gap:8px; padding:10px 14px; background:rgba(67,97,238,0.08); border:1px solid var(--border); border-radius:10px; text-decoration:none; color:var(--accent); font-size:0.85rem; font-weight:600; margin-bottom:8px; transition:all 0.2s;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Ver en Google Maps
-        </a>
         <div id="bp-arrivals"></div>
     </div>
 </div>
@@ -336,7 +331,6 @@ function cargarParada(stopId, stopName, stopAddr) {
     // Abrir
     document.getElementById('bus-overlay').style.display = 'block';
     document.getElementById('bus-panel').classList.add('open');
-    document.body.classList.add('detail-panel-open');
 
     const apiUrl = '{{ path('api_buses_parada', {'stopId': 'PLACEHOLDER'}) }}'.replace('PLACEHOLDER', encodeURIComponent(stopId));
     fetch(apiUrl)
@@ -356,15 +350,6 @@ function cargarParada(stopId, stopName, stopAddr) {
             if (info) {
                 document.getElementById('bp-name').textContent = info.stopName || info.name || '';
                 document.getElementById('bp-addr').textContent = info.postalAddress || info.address || '';
-
-                // Google Maps link
-                const mapsLink = document.getElementById('bp-maps-link');
-                if (info.stopName || info.name) {
-                    const stopLocation = encodeURIComponent((info.stopName || info.name) + ' ' + (info.postalAddress || info.address || ''));
-                    mapsLink.href = `https://www.google.com/maps/search/${stopLocation}`;
-                    mapsLink.style.display = 'flex';
-                }
-
                 if (info.lines && info.lines.length) {
                     const linesEl = document.getElementById('bp-lines');
                     linesEl.innerHTML = info.lines.slice(0,12).map(l => `<span class="bp-line-chip">${l.label || l}</span>`).join('');
@@ -439,7 +424,6 @@ function cerrarPanel() {
     clearInterval(countdown);
     document.getElementById('bus-overlay').style.display = 'none';
     document.getElementById('bus-panel').classList.remove('open');
-    document.body.classList.remove('detail-panel-open');
 }
 
 document.getElementById('btnConsultar').addEventListener('click', buscarManual);

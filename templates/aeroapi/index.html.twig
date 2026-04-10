@@ -732,7 +732,6 @@ function abrirVuelo(data, rowId) {
     // Abrir panel
     document.getElementById('detail-overlay').style.display = 'block';
     document.getElementById('detail-panel').classList.add('open');
-    document.body.classList.add('detail-panel-open');
 
     const apiUrl = '{{ path('api_vuelo_info', {'flight': 'PLACEHOLDER'}) }}'.replace('PLACEHOLDER', encodeURIComponent(data.vueloTren));
 
@@ -856,7 +855,6 @@ function abrirVuelo(data, rowId) {
 function cerrarPanel() {
     document.getElementById('detail-overlay').style.display = 'none';
     document.getElementById('detail-panel').classList.remove('open');
-    document.body.classList.remove('detail-panel-open');
     hide('dp-map-card');
     if (activeRow) { document.getElementById(activeRow)?.classList.remove('active-row'); activeRow = null; }
 }

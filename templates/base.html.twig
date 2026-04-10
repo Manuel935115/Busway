@@ -226,7 +226,6 @@
                 overflow-y: auto;
                 display: flex;
                 flex-direction: column;
-                transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
             /* Mobile Header Navbar */
@@ -278,11 +277,6 @@
             @keyframes shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
             .skeleton { background: linear-gradient(90deg, var(--border) 25%, rgba(150,150,150,0.08) 50%, var(--border) 75%); background-size: 600px 100%; animation: shimmer 1.4s infinite linear; border-radius: 6px; }
 
-            /* ── PANEL LATERAL ABIERTO ── */
-            body.detail-panel-open .main-content {
-                margin-right: 480px;
-            }
-
             /* ── RESPONSIVE ── */
             @media (max-width: 900px) {
                 .sidebar { position: fixed; height: 100%; transform: translateX(-100%); }
@@ -292,9 +286,6 @@
             }
             @media (max-width: 768px) {
                 .content-wrap { padding: 20px 16px 40px; }
-                body.detail-panel-open .main-content {
-                    margin-right: 0 !important;
-                }
             }
         </style>
         {% block stylesheets %}{% endblock %}
