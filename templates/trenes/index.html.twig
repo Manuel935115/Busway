@@ -7,6 +7,11 @@
     /* Estilos específicos de trenes */
     .content-wrap { max-width: 920px; }
 
+    /* Detail panel */
+    #detail-panel.open {
+        right: 0 !important;
+    }
+
     /* ── SEARCH ── */
     .search-section { margin-bottom: 24px; }
     .search-bar {
@@ -616,13 +621,13 @@ function abrirTren(data, rowId) {
     }
 
     document.getElementById('detail-overlay').style.display = 'block';
-    document.getElementById('detail-panel').style.right = '0';
+    document.getElementById('detail-panel').classList.add('open');
     document.body.classList.add('detail-panel-open');
 }
 
 function cerrarPanelTren() {
     document.getElementById('detail-overlay').style.display = 'none';
-    document.getElementById('detail-panel').style.right = '-360px';
+    document.getElementById('detail-panel').classList.remove('open');
     document.body.classList.remove('detail-panel-open');
     if (activeRowTren) {
         document.getElementById(activeRowTren)?.classList.remove('active-row');
