@@ -205,6 +205,7 @@ class AeroapiController extends AbstractController
             ->setParameter('pendiente', 'Pendiente')
             ->setParameter('empty', '')
             ->setParameter('headerRow', 'codigo')
+            ->orderBy('s.fecha', 'ASC')
             ->getQuery()
             ->getResult();
 

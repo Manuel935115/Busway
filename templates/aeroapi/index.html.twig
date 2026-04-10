@@ -257,7 +257,21 @@
         .dp-route { flex-direction:column; gap:6px; text-align:center; }
         .dp-airport { text-align:center !important; }
     }
+
+    /* ── MAPA SERVICIO ── */
+    .svc-map-wrap { margin:12px 0 4px; }
+    .svc-map-btn {
+        width:100%; padding:10px 14px; border:1px solid var(--border);
+        border-radius:10px; background:var(--card-bg); cursor:pointer;
+        display:flex; align-items:center; gap:8px; font-size:0.82rem;
+        font-weight:700; color:var(--text-primary); transition:background 0.15s;
+    }
+    .svc-map-btn:hover { background:rgba(67,97,238,0.06); }
+    .svc-map-chevron { margin-left:auto; font-size:0.65rem; transition:transform 0.2s; }
+    #leaflet-css-loaded + * { display:block; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
 {# ── OVERLAY + PANEL ── #}
 <div id="detail-overlay" onclick="cerrarPanel()"></div>
@@ -297,6 +311,15 @@
             <div class="dp-srv-item"><div class="dp-srv-label">Pasajeros</div><div class="dp-srv-value" id="dp-srv-pax"></div></div>
             <div class="dp-srv-item"><div class="dp-srv-label">Recogida</div><div class="dp-srv-value" id="dp-srv-fecha"></div></div>
             <div class="dp-srv-item"><div class="dp-srv-label">Desde</div><div class="dp-srv-value" id="dp-srv-origen" style="font-size:0.8rem; line-height:1.3;"></div></div>
+        </div>
+
+        {# Fecha del vuelo (destacada) #}
+        <div class="dp-card" id="dp-date-card" style="display:none; background:linear-gradient(135deg, rgba(67,97,238,0.08) 0%, rgba(34,197,94,0.08) 100%); border:1px solid var(--border);">
+            <div style="text-align:center; padding:2px 0;">
+                <div style="font-size:0.58rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Fecha del vuelo</div>
+                <div id="dp-flight-date" style="font-size:1.4rem; font-weight:900; color:var(--accent); letter-spacing:-0.5px;"></div>
+                <div id="dp-flight-day" style="font-size:0.85rem; color:var(--text-muted); font-weight:600; margin-top:4px;"></div>
+            </div>
         </div>
 
         {# Error box #}
@@ -364,6 +387,14 @@
             </div>
         </div>
 
+        {# Mapa de ruta #}
+        <div class="dp-card" id="dp-map-card" style="display:none;">
+            <div class="dp-card-title">Ruta en mapas</div>
+            <a href="#" id="dp-gmaps-link" target="_blank" style="display:block; margin-top:12px; padding:16px; background:rgba(67,97,238,0.08); border:1px solid var(--border); border-radius:10px; text-align:center; text-decoration:none; color:var(--accent); font-weight:700; font-size:0.85rem; transition:background 0.2s;">
+                📍 Abrir ruta en Google Maps
+            </a>
+        </div>
+
     </div>
 
     <div class="dp-footer" id="dp-footer">
@@ -403,6 +434,12 @@
                 <input type="number" id="filterPax" placeholder="0" onchange="aplicarFiltros()" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(67,97,238,0.03); color:var(--text-primary); font-size:0.85rem; width:100px;">
             </div>
             <button onclick="limpiarFiltros()" style="background:var(--border); border:none; color:var(--text-muted); padding:8px 14px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer; transition:all 0.2s; align-self:flex-end;">Limpiar</button>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:8px; align-self:flex-end;">
+                <label style="font-size:0.75rem; font-weight:600; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="hidePastFlights" onchange="togglePastFlights()" style="cursor:pointer; width:16px; height:16px;">
+                    <span>Ocultar vuelos pasados</span>
+                </label>
+            </div>
         </div>
         <table class="srv-table">
             <thead>
@@ -411,6 +448,7 @@
                     <th style="width:120px;">Código</th>
                     <th style="width:180px;">Vuelo</th>
                     <th style="width:auto;">Ruta</th>
+                    <th style="width:110px; white-space:nowrap;">Fecha</th>
                     <th style="width:70px; text-align:center;">Pax</th>
                 </tr>
             </thead>
@@ -422,11 +460,11 @@
                 {% set expandId = 'expand-' ~ loop.index %}
 
                 {% if esBus %}
-                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="expand-row bus-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% elseif esTren %}
-                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="expand-row tren-row srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="toggleExpand('{{ expandId }}', this)"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% else %}
-                <tr id="row-{{ loop.index }}" class="srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')"{% if loop.index > 30 %} style="display:none;"{% endif %}>
+                <tr id="row-{{ loop.index }}" class="srv-data-row{% if loop.index > 30 %} lazy-hidden{% endif %}" data-ident="{{ s.codigo|upper }}" data-vuelo="{{ s.vueloTren|upper }}" data-fecha="{{ s.fecha|split(' ')|first }}" data-datetime="{{ s.fecha }}" data-pax="{{ s.pasajeros }}" onclick="abrirVuelo({{ {codigo: s.codigo, origen: s.origen, destino: s.destino, pasajeros: s.pasajeros, fecha: s.fecha, vueloTren: s.vueloTren}|json_encode|e('html_attr') }}, 'row-{{ loop.index }}')"{% if loop.index > 30 %} style="display:none;"{% endif %}>
                 {% endif %}
                     <td style="text-align:center; padding:14px 8px;">
                         {% if esBus or esTren %}
@@ -475,6 +513,17 @@
                         </div>
                         {% endif %}
                     </td>
+                    <td style="font-size:0.82rem; font-weight:600; color:var(--text-primary); text-align:center; padding:12px 16px;">
+                        {% if s.fecha %}
+                            {% set fechaParts = s.fecha|split(' ') %}
+                            <div style="white-space:nowrap; line-height:1.5;">
+                                <div style="font-size:0.82rem; font-weight:600;">{{ fechaParts[0] }}</div>
+                                {% if fechaParts[1] %}<div style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">{{ fechaParts[1] }}</div>{% endif %}
+                            </div>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
                     <td style="text-align:center;">
                         <span class="pax-badge">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-muted)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -483,8 +532,8 @@
                     </td>
                 </tr>
                 {% if esBus or esTren %}
-                <tr id="{{ expandId }}" style="display:none;" {% if loop.index > 30 %}class="lazy-hidden"{% endif %} {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %}>
-                    <td colspan="5" style="padding:0;">
+                <tr id="{{ expandId }}" style="display:none;" {% if loop.index > 30 %}class="lazy-hidden"{% endif %} {% if esBus %}data-origen="{{ s.origen|e('html_attr') }}"{% endif %} data-coord="{{ s.coord|e('html_attr') }}">
+                    <td colspan="6" style="padding:0;">
                         <div class="svc-expand-body {{ esBus ? 'svc-bus' : 'svc-tren' }}">
                             <div class="svc-expand-grid">
                                 <div class="svc-expand-item">
@@ -504,6 +553,19 @@
                                     <div class="svc-expand-value">{{ s.destino }}</div>
                                 </div>
                             </div>
+                            {% if s.coord %}
+                            <div class="svc-map-wrap" id="map-wrap-{{ expandId }}">
+                                <button onclick="toggleSvcMap('{{ expandId }}')" class="svc-map-btn" id="map-btn-{{ expandId }}">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    Ver ruta en mapa
+                                    <span class="svc-map-chevron" id="map-chev-{{ expandId }}">▼</span>
+                                </button>
+                                <div id="map-inner-{{ expandId }}" style="display:none; overflow:hidden; transition:height 0.3s ease;">
+                                    <div id="map-el-{{ expandId }}" style="width:100%; height:240px; cursor:pointer;" title="Click para abrir en Google Maps"></div>
+                                    <div id="map-info-{{ expandId }}" style="padding:8px 14px; font-size:0.78rem; color:var(--text-muted); font-weight:600; border-top:1px solid var(--border); text-align:center;"></div>
+                                </div>
+                            </div>
+                            {% endif %}
                             {% if esBus %}
                             <div class="bus-live-wrap" id="bus-live-{{ expandId }}">
                                 <div class="bus-live-msg"><div class="bus-live-spinner"></div></div>
@@ -591,19 +653,30 @@ function aplicarFiltros() {
     const vuelo = (document.getElementById('filterVuelo').value || '').trim().toUpperCase();
     const fecha = document.getElementById('filterFecha').value;
     const paxMin = parseInt(document.getElementById('filterPax').value) || 0;
+    const hidePast = document.getElementById('hidePastFlights').checked;
     const rows = document.querySelectorAll('.srv-data-row');
     let visibles = 0;
+
+    const now = new Date();
 
     rows.forEach(row => {
         const rowIdent = (row.dataset.ident || '') + ' ' + (row.dataset.vuelo || '');
         const rowFecha = row.dataset.fecha || '';
+        const rowDateTime = row.dataset.datetime || '';
         const rowPax = parseInt(row.dataset.pax) || 0;
 
         const matchVuelo = !vuelo || rowIdent.includes(vuelo);
         const matchFecha = !fecha || rowFecha === fecha;
         const matchPax = rowPax >= paxMin;
 
-        if (matchVuelo && matchFecha && matchPax) {
+        let matchPastFilter = true;
+        if (hidePast && rowDateTime) {
+            // rowDateTime formato: "YYYY-MM-DD HH:MM:SS"
+            const flightDateTime = new Date(rowDateTime.replace(' ', 'T'));
+            matchPastFilter = flightDateTime >= now;
+        }
+
+        if (matchVuelo && matchFecha && matchPax && matchPastFilter) {
             row.style.display = '';
             visibles++;
         } else {
@@ -616,6 +689,8 @@ function limpiarFiltros() {
     document.getElementById('filterVuelo').value = '';
     document.getElementById('filterFecha').value = '';
     document.getElementById('filterPax').value = '';
+    document.getElementById('hidePastFlights').checked = false;
+    localStorage.removeItem('hidePastFlights');
     document.querySelectorAll('.srv-data-row').forEach(row => row.style.display = '');
 }
 
@@ -651,7 +726,7 @@ function abrirVuelo(data, rowId) {
     show('dp-loading'); document.getElementById('dp-loading').style.display = 'flex';
     document.getElementById('dp-body').style.display = 'none';
     hide('dp-footer'); hide('dp-error');
-    ['dp-route-card','dp-times-card','dp-tech-card'].forEach(hide);
+    ['dp-route-card','dp-times-card','dp-tech-card','dp-map-card'].forEach(hide);
 
     // Abrir panel
     document.getElementById('detail-overlay').style.display = 'block';
@@ -710,6 +785,25 @@ function abrirVuelo(data, rowId) {
             document.getElementById('dp-progress').style.width = prog + '%';
             set('dp-prog-label', prog + '%');
 
+            // Mostrar card de mapas con enlace a Google Maps
+            const originCity = f.origin?.city || f.origin?.code_iata || '';
+            const destCity = f.destination?.city || f.destination?.code_iata || '';
+            if (originCity && destCity) {
+                show('dp-map-card');
+                const gmapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(originCity)}/${encodeURIComponent(destCity)}`;
+                document.getElementById('dp-gmaps-link').href = gmapsUrl;
+            }
+
+            // Fecha del vuelo
+            if (f.scheduled_out) {
+                show('dp-date-card');
+                const dateObj = new Date(f.scheduled_out);
+                const dateStr = dateObj.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const dayNumber = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                set('dp-flight-date', dayNumber);
+                set('dp-flight-day', dateStr.charAt(0).toUpperCase() + dateStr.slice(1));
+            }
+
             // Tiempos
             show('dp-times-card');
             set('dp-dep-iata', f.origin?.code_iata || f.origin?.code || '—');
@@ -760,6 +854,7 @@ function abrirVuelo(data, rowId) {
 function cerrarPanel() {
     document.getElementById('detail-overlay').style.display = 'none';
     document.getElementById('detail-panel').classList.remove('open');
+    hide('dp-map-card');
     if (activeRow) { document.getElementById(activeRow)?.classList.remove('active-row'); activeRow = null; }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarPanel(); });
@@ -909,6 +1004,109 @@ if (sentinel && hasHiddenRows()) {
         });
     }, { rootMargin: '300px' });
     observer.observe(sentinel);
+}
+
+// Filtro de vuelos pasados
+function togglePastFlights() {
+    const hidePast = document.getElementById('hidePastFlights').checked;
+    localStorage.setItem('hidePastFlights', hidePast);
+    aplicarFiltros();
+}
+
+// Restaurar estado del checkbox al cargar
+document.addEventListener('DOMContentLoaded', () => {
+    const hidePastCheckbox = document.getElementById('hidePastFlights');
+    if (hidePastCheckbox) {
+        const savedState = localStorage.getItem('hidePastFlights');
+        if (savedState === 'true') {
+            hidePastCheckbox.checked = true;
+            // Aplicar filtros después de establecer el checkbox
+            setTimeout(() => aplicarFiltros(), 0);
+        }
+    }
+});
+
+// Datos para el mapa
+let currentFlightData = null;
+
+// Mapas en filas de servicios (bus/tren)
+const svcMaps = {};
+
+async function toggleSvcMap(expandId) {
+    const inner = document.getElementById('map-inner-' + expandId);
+    const chev  = document.getElementById('map-chev-' + expandId);
+    const row   = document.getElementById(expandId);
+
+    if (!inner || !row) return;
+
+    const isOpen = inner.style.display === 'block';
+    if (isOpen) {
+        inner.style.display = 'none';
+        chev.style.transform = 'rotate(0deg)';
+        return;
+    }
+
+    inner.style.display = 'block';
+    chev.style.transform = 'rotate(180deg)';
+
+    // Solo inicializar el mapa una vez
+    if (svcMaps[expandId]) return;
+
+    const coordRaw = row.dataset.coord || '';
+    if (!coordRaw) return;
+
+    let coords;
+    try { coords = JSON.parse(coordRaw); } catch(e) { return; }
+
+    const start = coords.start;
+    const end   = coords.end;
+    if (!start || !end) return;
+
+    const mapEl = document.getElementById('map-el-' + expandId);
+    const infoEl = document.getElementById('map-info-' + expandId);
+
+    // Inicializar mapa Leaflet
+    const map = L.map(mapEl, { zoomControl: false, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    svcMaps[expandId] = map;
+
+    // Marcadores
+    const iconBlue  = L.divIcon({ className:'', html:'<div style="width:12px;height:12px;background:#4361ee;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>', iconAnchor:[6,6] });
+    const iconGreen = L.divIcon({ className:'', html:'<div style="width:12px;height:12px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>', iconAnchor:[6,6] });
+    L.marker([start.lat, start.lng], { icon: iconBlue  }).addTo(map);
+    L.marker([end.lat,   end.lng  ], { icon: iconGreen }).addTo(map);
+
+    // Ajustar vista a los dos puntos
+    const bounds = L.latLngBounds([[start.lat, start.lng], [end.lat, end.lng]]);
+    map.fitBounds(bounds, { padding: [30, 30] });
+
+    // Click en mapa → Google Maps
+    const gmapsUrl = `https://www.google.com/maps/dir/${start.lat},${start.lng}/${end.lat},${end.lng}`;
+    mapEl.addEventListener('click', () => window.open(gmapsUrl, '_blank'));
+
+    // Ruta y duración desde OSRM (gratis, sin API key)
+    try {
+        const osrm = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+        const data = await osrm.json();
+        const route = data.routes?.[0];
+        if (route) {
+            // Dibujar ruta en el mapa
+            L.geoJSON(route.geometry, { style: { color:'#4361ee', weight:4, opacity:0.8 } }).addTo(map);
+
+            // Mostrar duración y distancia
+            const mins = Math.round(route.duration / 60);
+            const km   = (route.distance / 1000).toFixed(1);
+            const h    = Math.floor(mins / 60);
+            const m    = mins % 60;
+            const durStr = h > 0 ? `${h}h ${m}min` : `${m} min`;
+            infoEl.innerHTML = `🚗 ${km} km · ⏱ ${durStr} &nbsp;·&nbsp; <a href="${gmapsUrl}" target="_blank" style="color:var(--accent);font-weight:700;text-decoration:none;">Abrir en Google Maps →</a>`;
+        }
+    } catch(e) {
+        infoEl.innerHTML = `<a href="${gmapsUrl}" target="_blank" style="color:var(--accent);font-weight:700;text-decoration:none;">Abrir en Google Maps →</a>`;
+    }
+
+    // Refrescar mapa tras animar
+    setTimeout(() => map.invalidateSize(), 310);
 }
 </script>
 {% endblock %}
